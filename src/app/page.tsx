@@ -1,11 +1,6 @@
 'use client';
 
-import dynamic from 'next/dynamic';
-
-const StoryboardCollabSystem = dynamic(
-  () => import('@/components/StoryboardCollabSystem'),
-  { ssr: false }
-);
+import StoryboardCollabSystem from '@/components/StoryboardCollabSystem';
 
 export default function Home() {
   return <StoryboardCollabSystem />;

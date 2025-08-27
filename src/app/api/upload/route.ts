@@ -5,10 +5,12 @@ import { existsSync } from 'fs';
 import path from 'path';
 import { nanoid } from 'nanoid';
 
-// Railway 환경에서는 /tmp 디렉토리 사용 (임시)
-const UPLOAD_DIR = process.env.NODE_ENV === 'production' 
-  ? '/tmp/uploads' 
-  : path.join(process.cwd(), 'public', 'uploads');
+// Railway 볼륨 또는 임시 디렉토리 사용
+const UPLOAD_DIR = process.env.UPLOAD_DIR || (
+  process.env.NODE_ENV === 'production' 
+    ? '/app/uploads'  // Railway 볼륨 경로
+    : path.join(process.cwd(), 'public', 'uploads')
+);
 
 export async function POST(request: NextRequest) {
   try {

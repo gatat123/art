@@ -3,9 +3,11 @@ import { readFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 
-const UPLOAD_DIR = process.env.NODE_ENV === 'production' 
-  ? '/tmp/uploads' 
-  : path.join(process.cwd(), 'public', 'uploads');
+const UPLOAD_DIR = process.env.UPLOAD_DIR || (
+  process.env.NODE_ENV === 'production' 
+    ? '/app/uploads'  // Railway 볼륨 경로
+    : path.join(process.cwd(), 'public', 'uploads')
+);
 
 export async function GET(
   request: NextRequest,
@@ -32,7 +34,10 @@ export async function GET(
 
     const mimeType = mimeTypes[ext] || 'application/octet-stream';
 
-    return new NextResponse(file, {
+    // Buffer를 Uint8Array로 변환
+    const uint8Array = new Uint8Array(file);
+
+    return new NextResponse(uint8Array, {
       headers: {
         'Content-Type': mimeType,
         'Cache-Control': 'public, max-age=31536000'

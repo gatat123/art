@@ -17,7 +17,7 @@ interface ChannelListViewProps {
   authError: string;
   setChannels: (channels: Channel[]) => void;
   setChannelAuth: (auth: Record<number, boolean>) => void;
-  setCurrentChannel: (channel: Channel) => void;
+  setCurrentChannel: (channel: any) => void;
   setCurrentView: (view: string) => void;
   setNewChannel: (channel: { name: string; password: string }) => void;
   setAuthPassword: (password: string) => void;

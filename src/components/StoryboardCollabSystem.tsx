@@ -16,8 +16,8 @@ import SceneView from './SceneView';
 const StoryboardCollabSystem = () => {
   // 상태 관리
   const [currentView, setCurrentView] = useState('channel-list');
-  const [currentChannel, setCurrentChannel] = useState(null);
-  const [currentProject, setCurrentProject] = useState(null);
+  const [currentChannel, setCurrentChannel] = useState<any>(null);
+  const [currentProject, setCurrentProject] = useState<any>(null);
   const [currentScene, setCurrentScene] = useState(0);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');

@@ -31,3 +31,10 @@ next-env.d.ts
 
 # Mac
 .DS_Store
+
+# Backup files
+*.backup
+Dockerfile.backup
+.dockerignore.backup
+nixpacks.toml.backup
+vercel.json.backup

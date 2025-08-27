@@ -1,5 +1,5 @@
 import React from 'react';
-import { Hash, Lock, Unlock, LogIn } from 'lucide-react';
+import { Shield, LogIn, Hash, Plus, Users, ChevronRight, Lock } from 'lucide-react';
 
 interface Channel {
   id: number;
@@ -11,13 +11,13 @@ interface Channel {
 
 interface ChannelListViewProps {
   channels: Channel[];
-  channelAuth: Record<number, boolean>;
+  channelAuth: Record<string, boolean>;
   newChannel: { name: string; password: string };
   authPassword: string;
   authError: string;
   setChannels: (channels: Channel[]) => void;
-  setChannelAuth: (auth: Record<number, boolean>) => void;
-  setCurrentChannel: (channel: any) => void;
+  setChannelAuth: (auth: Record<string, boolean>) => void;
+  setCurrentChannel: (channel: Channel) => void;
   setCurrentView: (view: string) => void;
   setNewChannel: (channel: { name: string; password: string }) => void;
   setAuthPassword: (password: string) => void;
@@ -36,147 +36,249 @@ const ChannelListView: React.FC<ChannelListViewProps> = ({
   setCurrentView,
   setNewChannel,
   setAuthPassword,
-  setAuthError
+  setAuthError,
 }) => {
+  const [showCreateModal, setShowCreateModal] = React.useState(false);
+  const [selectedChannel, setSelectedChannel] = React.useState<Channel | null>(null);
+  const [showAuthModal, setShowAuthModal] = React.useState(false);
+
   const createChannel = () => {
     if (newChannel.name && newChannel.password) {
-      const channel: Channel = {
+      const channel = {
         id: Date.now(),
         name: newChannel.name,
         password: newChannel.password,
         createdAt: new Date().toISOString().split('T')[0],
         projectCount: 0
       };
+      
       const updatedChannels = [...channels, channel];
       setChannels(updatedChannels);
       if (typeof window !== 'undefined') {
         localStorage.setItem('channels', JSON.stringify(updatedChannels));
       }
+      
       setNewChannel({ name: '', password: '' });
-      setChannelAuth({ ...channelAuth, [channel.id]: true });
-      setCurrentChannel(channel);
-      setCurrentView('project');
+      setShowCreateModal(false);
     }
   };
 
-  const authenticateChannel = (channel: Channel) => {
-    if (authPassword === channel.password) {
-      setChannelAuth({ ...channelAuth, [channel.id]: true });
-      setCurrentChannel(channel);
+  const authenticateChannel = () => {
+    if (selectedChannel && authPassword === selectedChannel.password) {
+      setChannelAuth({ ...channelAuth, [selectedChannel.id]: true });
+      setCurrentChannel(selectedChannel);
       setCurrentView('project');
       setAuthPassword('');
       setAuthError('');
+      setShowAuthModal(false);
     } else {
-      setAuthError('비밀번호가 올바르지 않습니다.');
+      setAuthError('비밀번호가 올바르지 않습니다');
+    }
+  };
+
+  const handleChannelClick = (channel: Channel) => {
+    if (channelAuth[channel.id]) {
+      setCurrentChannel(channel);
+      setCurrentView('project');
+    } else {
+      setSelectedChannel(channel);
+      setShowAuthModal(true);
+      setAuthError('');
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200">
-        <div className="px-6 py-4">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Hash className="w-8 h-8" />
-              <h1 className="text-2xl font-bold">채널</h1>
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-black to-gray-600 bg-clip-text text-transparent">
+                Storyboard Studio
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">Professional collaboration platform</p>
             </div>
+            <button 
+              onClick={() => setShowCreateModal(true)}
+              className="btn-primary flex items-center gap-2"
+            >
+              <Plus size={18} />
+              New Channel
+            </button>
           </div>
         </div>
       </header>
 
-      <div className="p-6">
-        <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-          <h2 className="font-bold text-lg mb-4">새 채널 만들기</h2>
-          <div className="flex space-x-4">
-            <input
-              type="text"
-              placeholder="채널 이름"
-              value={newChannel.name}
-              onChange={(e) => setNewChannel({...newChannel, name: e.target.value})}
-              className="flex-1 px-3 py-2 border rounded focus:outline-none focus:border-black"
-            />
-            <input
-              type="password"
-              placeholder="비밀번호"
-              value={newChannel.password}
-              onChange={(e) => setNewChannel({...newChannel, password: e.target.value})}
-              className="w-48 px-3 py-2 border rounded focus:outline-none focus:border-black"
-            />
-            <button
-              onClick={createChannel}
-              className="px-6 py-2 bg-black text-white rounded hover:bg-gray-800"
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-6 py-12">
+        {channels.length === 0 ? (
+          <div className="text-center py-24">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-gray-100 rounded-full mb-6">
+              <Hash size={40} className="text-gray-400" />
+            </div>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-3">
+              No channels yet
+            </h2>
+            <p className="text-gray-500 mb-8 max-w-md mx-auto">
+              Create your first channel to start collaborating on storyboard projects
+            </p>
+            <button 
+              onClick={() => setShowCreateModal(true)}
+              className="btn-primary inline-flex items-center gap-2"
             >
-              생성
+              <Plus size={18} />
+              Create First Channel
             </button>
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {channels.map(channel => (
-            <div 
-              key={channel.id}
-              className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow"
-            >
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="font-bold text-lg flex items-center gap-2">
-                    <Hash size={20} />
-                    {channel.name}
-                  </h3>
-                  <p className="text-gray-500 text-sm mt-1">
-                    프로젝트 {channel.projectCount}개
-                  </p>
-                </div>
-                {channelAuth[channel.id] ? (
-                  <Unlock className="text-green-500" size={20} />
-                ) : (
-                  <Lock className="text-gray-400" size={20} />
-                )}
-              </div>
-
-              <div className="text-sm text-gray-500 mb-4">
-                생성일: {channel.createdAt}
-              </div>
-
-              {channelAuth[channel.id] ? (
-                <button
-                  onClick={() => {
-                    setCurrentChannel(channel);
-                    setCurrentView('project');
-                  }}
-                  className="w-full px-4 py-2 bg-black text-white rounded hover:bg-gray-800"
-                >
-                  입장하기
-                </button>
-              ) : (
-                <div className="space-y-2">
-                  <input
-                    type="password"
-                    placeholder="비밀번호 입력"
-                    value={authPassword}
-                    onChange={(e) => {
-                      setAuthPassword(e.target.value);
-                      setAuthError('');
-                    }}
-                    onKeyPress={(e) => e.key === 'Enter' && authenticateChannel(channel)}
-                    className="w-full px-3 py-2 border rounded focus:outline-none focus:border-black"
-                  />
-                  {authError && (
-                    <p className="text-red-500 text-xs">{authError}</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {channels.map(channel => (
+              <div
+                key={channel.id}
+                onClick={() => handleChannelClick(channel)}
+                className="card card-hover p-6 group"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-gray-700 to-black rounded-2xl flex items-center justify-center">
+                      <Hash size={20} className="text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg text-gray-900 group-hover:text-black transition-colors">
+                        {channel.name}
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        Created {channel.createdAt}
+                      </p>
+                    </div>
+                  </div>
+                  {channelAuth[channel.id] ? (
+                    <div className="badge badge-success">
+                      <Lock size={12} />
+                      Unlocked
+                    </div>
+                  ) : (
+                    <div className="badge badge-default">
+                      <Shield size={12} />
+                      Protected
+                    </div>
                   )}
-                  <button
-                    onClick={() => authenticateChannel(channel)}
-                    className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                  >
-                    <LogIn size={16} className="inline mr-2" />
-                    인증하기
-                  </button>
                 </div>
+                
+                <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Users size={16} />
+                    <span>{channel.projectCount} projects</span>
+                  </div>
+                  <ChevronRight size={20} className="text-gray-400 group-hover:text-black transition-colors" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
+
+      {/* Create Channel Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCreateModal(false)} />
+          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 animate-slide-in">
+            <h2 className="text-2xl font-bold mb-6">Create New Channel</h2>
+            
+            <div className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Channel Name
+                </label>
+                <input
+                  type="text"
+                  value={newChannel.name}
+                  onChange={(e) => setNewChannel({ ...newChannel, name: e.target.value })}
+                  className="input-field"
+                  placeholder="Enter channel name"
+                  autoFocus
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={newChannel.password}
+                  onChange={(e) => setNewChannel({ ...newChannel, password: e.target.value })}
+                  className="input-field"
+                  placeholder="Set channel password"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-8">
+              <button 
+                onClick={() => setShowCreateModal(false)}
+                className="flex-1 btn-secondary"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={createChannel}
+                className="flex-1 btn-primary"
+              >
+                Create Channel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Auth Modal */}
+      {showAuthModal && selectedChannel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowAuthModal(false)} />
+          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 animate-slide-in">
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
+                <Shield size={32} className="text-gray-600" />
+              </div>
+              <h2 className="text-2xl font-bold">{selectedChannel.name}</h2>
+              <p className="text-gray-500 mt-1">Enter password to access</p>
+            </div>
+            
+            <div>
+              <input
+                type="password"
+                value={authPassword}
+                onChange={(e) => setAuthPassword(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && authenticateChannel()}
+                className="input-field"
+                placeholder="Channel password"
+                autoFocus
+              />
+              {authError && (
+                <p className="text-red-500 text-sm mt-2">{authError}</p>
               )}
             </div>
-          ))}
+
+            <div className="flex gap-3 mt-6">
+              <button 
+                onClick={() => setShowAuthModal(false)}
+                className="flex-1 btn-secondary"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={authenticateChannel}
+                className="flex-1 btn-primary flex items-center justify-center gap-2"
+              >
+                <LogIn size={18} />
+                Access Channel
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

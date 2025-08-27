@@ -1,12 +1,13 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
 import './globals.css'
 
-const inter = Inter({ subsets: ['latin'] })
-
 export const metadata: Metadata = {
-  title: '영상툰 스토리보드 협업',
-  description: '작가와 그림작가를 위한 영상툰 제작 협업 플랫폼',
+  title: 'Storyboard Studio',
+  description: 'Professional storyboard collaboration platform',
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/apple-touch-icon.png'
+  }
 }
 
 export default function RootLayout({
@@ -15,8 +16,10 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="ko">
-      <body className={inter.className}>{children}</body>
+    <html lang="ko" className="scroll-smooth">
+      <body className="antialiased bg-white text-gray-900 min-h-screen">
+        {children}
+      </body>
     </html>
   )
 }

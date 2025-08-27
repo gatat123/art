@@ -19,7 +19,7 @@ const StoryboardCollabSystem = () => {
   const [currentChannel, setCurrentChannel] = useState<any>(null);
   const [currentProject, setCurrentProject] = useState<any>(null);
   const [currentScene, setCurrentScene] = useState(0);
-  const [comments, setComments] = useState([]);
+  const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState('');
   const [activeTab, setActiveTab] = useState('comments');
   const [showSketch, setShowSketch] = useState(true);
@@ -28,9 +28,9 @@ const StoryboardCollabSystem = () => {
   const [notifications, setNotifications] = useState(3);
   const [showCreateProject, setShowCreateProject] = useState(false);
   const [showSketchCanvas, setShowSketchCanvas] = useState(false);
-  const [pendingSketch, setPendingSketch] = useState(null);
-  const [selectedCommentId, setSelectedCommentId] = useState(null);
-  const [replyTo, setReplyTo] = useState(null);
+  const [pendingSketch, setPendingSketch] = useState<any>(null);
+  const [selectedCommentId, setSelectedCommentId] = useState<number | null>(null);
+  const [replyTo, setReplyTo] = useState<any>(null);
   const [replyText, setReplyText] = useState('');
 
   // 채널 데이터
@@ -50,7 +50,7 @@ const StoryboardCollabSystem = () => {
     return [];
   });
 
-  const [channelAuth, setChannelAuth] = useState({});
+  const [channelAuth, setChannelAuth] = useState<Record<string, boolean>>({});
   const [newChannel, setNewChannel] = useState({ name: '', password: '' });
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');

@@ -16,6 +16,9 @@ interface Project {
   lastUpdated: string;
   totalScenes: number;
   completedScenes: number;
+  author: string;
+  artist: string;
+  createdAt: string;
 }
 
 interface ProjectListViewProps {
@@ -63,6 +66,9 @@ const ProjectListView: React.FC<ProjectListViewProps> = ({
     const newProject = {
       ...projectData,
       channelId: currentChannel.id,
+      author: projectData.author || "나",
+      artist: projectData.artist || "",
+      createdAt: new Date().toISOString().split('T')[0],
       scenes: Array.from({ length: projectData.totalScenes }, (_, i) => ({
         id: Date.now() + i,
         title: `씬 ${i + 1}`,

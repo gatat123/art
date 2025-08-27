@@ -5,9 +5,6 @@ const nextConfig = {
   output: 'standalone',
   images: {
     domains: [],
-  },
-  experimental: {
-    outputFileTracing: true,
   }
 }
 

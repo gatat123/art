@@ -1,0 +1,400 @@
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-bold text-sm text-gray-500 mb-2">나레이션</h4>
+                  <p className="text-gray-800">{currentSceneData.narration}</p>
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm text-gray-500 mb-2">장면 설명</h4>
+                  <p className="text-gray-800">{currentSceneData.description}</p>
+                </div>
+              </div>
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <h4 className="font-bold text-sm text-gray-500 mb-2">사운드</h4>
+                <p className="text-gray-800">{currentSceneData.sound}</p>
+              </div>
+            </div>
+
+            {/* 이미지 뷰어 */}
+            <div className={`grid ${compareMode ? 'grid-cols-2' : 'grid-cols-1'} gap-6`}>
+              {/* 초안 */}
+              {(showSketch || compareMode) && (
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden relative">
+                  <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-sm">초안 (스케치)</span>
+                      {currentSceneData.sketchUrl && (
+                        <div className="flex items-center space-x-2">
+                          <button className="p-1 hover:bg-gray-200 rounded">
+                            <Download size={16} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="aspect-video bg-gray-100 flex items-center justify-center relative">
+                    {currentSceneData.sketchUrl ? (
+                      <>
+                        <img 
+                          src={currentSceneData.sketchUrl} 
+                          alt="초안"
+                          className="w-full h-full object-contain"
+                        />
+                        {showSketchOverlay && (
+                          <div className="absolute inset-0 pointer-events-none">
+                            <canvas 
+                              className="w-full h-full"
+                              style={{ 
+                                background: selectedCommentId ? 'rgba(0,0,0,0.1)' : 'transparent' 
+                              }}
+                            />
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="text-center text-gray-400">
+                        <Image size={48} className="mx-auto mb-2" />
+                        <p>초안 대기 중</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              {/* 아트워크 */}
+              {(showArtwork || compareMode) && !(!compareMode && showSketch && !showArtwork) && (
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden relative">
+                  <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-sm">아트워크 (최종)</span>
+                      {currentSceneData.artworkUrl && (
+                        <div className="flex items-center space-x-2">
+                          <button 
+                            onClick={() => setShowSketchCanvas(true)}
+                            className="p-1 hover:bg-gray-200 rounded flex items-center space-x-1"
+                            title="스케치 추가"
+                          >
+                            <Brush size={16} />
+                          </button>
+                          <button className="p-1 hover:bg-gray-200 rounded">
+                            <Download size={16} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="aspect-video bg-gray-100 flex items-center justify-center relative">
+                    {currentSceneData.artworkUrl ? (
+                      <>
+                        <img 
+                          src={currentSceneData.artworkUrl} 
+                          alt="아트워크"
+                          className="w-full h-full object-contain"
+                        />
+                        {showSketchOverlay && (
+                          <div 
+                            className="absolute inset-0 pointer-events-none"
+                            style={{ background: selectedCommentId ? 'rgba(0,0,0,0.1)' : 'transparent' }}
+                          >
+                            {comments.find(c => c.id === showSketchOverlay)?.sketchData && (
+                              <img 
+                                src={comments.find(c => c.id === showSketchOverlay)?.sketchData}
+                                alt="스케치 오버레이"
+                                className="w-full h-full object-contain"
+                                style={{ mixBlendMode: 'multiply' }}
+                              />
+                            )}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="text-center text-gray-400">
+                        <Image size={48} className="mx-auto mb-2" />
+                        <p>아트워크 대기 중</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 피드백 섹션 */}
+            {currentSceneData.feedback && currentSceneData.feedback.length > 0 && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <h4 className="font-bold text-sm text-yellow-800 mb-2">수정 요청 사항</h4>
+                <ul className="space-y-1">
+                  {currentSceneData.feedback.map((item: string, idx: number) => (
+                    <li key={idx} className="flex items-start space-x-2">
+                      <AlertCircle size={16} className="text-yellow-600 mt-0.5" />
+                      <span className="text-sm text-yellow-800">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 하단 네비게이션 */}
+        <div className="h-16 bg-white border-t border-gray-200 flex items-center justify-between px-6">
+          <button 
+            onClick={() => setCurrentScene(Math.max(0, currentScene - 1))}
+            disabled={currentScene === 0}
+            className="flex items-center space-x-2 px-4 py-2 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ChevronLeft size={20} />
+            <span>이전 씬</span>
+          </button>
+          
+          <div className="flex items-center space-x-2">
+            {storyboard.scenes?.map((_: any, index: number) => (
+              <button
+                key={index}
+                onClick={() => setCurrentScene(index)}
+                className={`w-2 h-2 rounded-full ${
+                  currentScene === index ? 'bg-black w-8' : 'bg-gray-300'
+                } transition-all`}
+              />
+            ))}
+          </div>
+          
+          <button 
+            onClick={() => setCurrentScene(Math.min(storyboard.scenes.length - 1, currentScene + 1))}
+            disabled={currentScene === storyboard.scenes.length - 1}
+            className="flex items-center space-x-2 px-4 py-2 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <span>다음 씬</span>
+            <ChevronRight size={20} />
+          </button>
+        </div>
+      </div>
+      {/* 오른쪽 패널 - 댓글 */}
+      <div className="w-96 bg-white border-l border-gray-200 flex flex-col">
+        {/* 탭 헤더 */}
+        <div className="h-14 border-b border-gray-200 flex items-center px-4">
+          <div className="flex space-x-6">
+            <button
+              onClick={() => setActiveTab('comments')}
+              className={`pb-2 text-sm font-medium ${
+                activeTab === 'comments' 
+                  ? 'text-black border-b-2 border-black' 
+                  : 'text-gray-400'
+              }`}
+            >
+              댓글 ({filteredComments.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('activity')}
+              className={`pb-2 text-sm font-medium ${
+                activeTab === 'activity' 
+                  ? 'text-black border-b-2 border-black' 
+                  : 'text-gray-400'
+              }`}
+            >
+              활동
+            </button>
+          </div>
+        </div>
+
+        {/* 탭 컨텐츠 */}
+        <div className="flex-1 overflow-y-auto">          {activeTab === 'comments' && (
+            <div className="p-4 space-y-4">
+              {filteredComments.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <MessageCircle size={32} className="mx-auto mb-2" />
+                  <p>아직 댓글이 없습니다</p>
+                </div>
+              ) : (
+                filteredComments.map(comment => (
+                  <div key={comment.id} className="space-y-2">
+                    {/* 메인 댓글 */}
+                    <div 
+                      className={`flex space-x-3 p-2 rounded ${
+                        selectedCommentId === comment.id ? 'bg-gray-100' : ''
+                      }`}
+                      onClick={() => comment.sketchData && toggleSketchOverlay(comment.id)}
+                    >
+                      <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-xs font-bold">
+                        {comment.avatar}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <span className="font-semibold text-sm">{comment.author}</span>
+                          <span className="text-xs text-gray-400">{comment.time}</span>
+                          {comment.type === 'revision' && (
+                            <span className="bg-orange-100 text-orange-600 text-xs px-2 py-0.5 rounded">
+                              수정요청
+                            </span>
+                          )}
+                          {comment.resolved && (
+                            <span className="bg-green-100 text-green-600 text-xs px-2 py-0.5 rounded">
+                              해결됨
+                            </span>
+                          )}                          {comment.sketchData && (
+                            <button className="bg-purple-100 text-purple-600 text-xs px-2 py-0.5 rounded flex items-center space-x-1">
+                              <Brush size={10} />
+                              <span>스케치 포함</span>
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-700">{comment.content}</p>
+                        <div className="flex items-center space-x-3 mt-2">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setReplyTo(comment.id);
+                            }}
+                            className="text-xs text-gray-400 hover:text-black flex items-center space-x-1"
+                          >
+                            <Reply size={12} />
+                            <span>답글</span>
+                          </button>
+                          {!comment.resolved && (
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleResolve(comment.id);
+                              }}
+                              className="text-xs text-gray-400 hover:text-green-600 flex items-center gap-1"
+                            >
+                              <Check size={12} />
+                              해결
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    {/* 답글들 */}
+                    {comment.replies && comment.replies.length > 0 && (
+                      <div className="ml-11 space-y-2">
+                        {comment.replies.map((reply: any) => (
+                          <div key={reply.id} className="flex space-x-3">
+                            <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-xs font-bold">
+                              {reply.avatar}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <span className="font-semibold text-xs">{reply.author}</span>
+                                <span className="text-xs text-gray-400">{reply.time}</span>
+                              </div>
+                              <p className="text-xs text-gray-700">{reply.content}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* 답글 입력 폼 */}
+                    {replyTo === comment.id && (
+                      <div className="ml-11 flex space-x-2">
+                        <input
+                          type="text"
+                          value={replyText}
+                          onChange={(e) => setReplyText(e.target.value)}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              addReply(comment.id);
+                            }
+                          }}
+                          placeholder="답글을 입력하세요..."
+                          className="flex-1 px-3 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:border-black"
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => addReply(comment.id)}
+                          className="px-3 py-1 bg-black text-white text-sm rounded hover:bg-gray-800"
+                        >
+                          <Send size={14} />
+                        </button>
+                        <button
+                          onClick={() => setReplyTo(null)}
+                          className="px-2 py-1 text-gray-400 hover:text-black"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+          {activeTab === 'activity' && (
+            <div className="p-4">
+              <div className="space-y-3">
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
+                  <div className="flex-1">
+                    <p className="text-sm">
+                      <span className="font-medium">김그림</span>님이 아트워크를 업로드했습니다
+                    </p>
+                    <p className="text-xs text-gray-500">30분 전</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+                  <div className="flex-1">
+                    <p className="text-sm">
+                      <span className="font-medium">나</span>님이 댓글을 남겼습니다
+                    </p>
+                    <p className="text-xs text-gray-500">1시간 전</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 댓글 입력 */}
+        {activeTab === 'comments' && (
+          <div className="border-t border-gray-200 p-4">
+            {pendingSketch && (
+              <div className="mb-2 p-2 bg-purple-50 rounded flex items-center justify-between">
+                <span className="text-xs text-purple-600">스케치가 추가됨</span>
+                <button onClick={() => setPendingSketch(null)} className="text-purple-600 hover:text-purple-800">
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+            <div className="flex space-x-2">
+              <button 
+                onClick={() => setShowSketchCanvas(true)}
+                className="p-2 hover:bg-gray-100 rounded"
+                title="스케치 추가"
+              >
+                <Brush size={20} />
+              </button>
+              <input
+                type="text"
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && addComment()}
+                placeholder="댓글을 입력하세요..."
+                className="flex-1 px-3 py-2 border border-gray-200 rounded focus:outline-none focus:border-black"
+              />
+              <button
+                onClick={addComment}
+                className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800"
+              >
+                <Send size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 스케치 캔버스 모달 */}
+      {showSketchCanvas && (
+        <SketchCanvas
+          imageUrl={currentSceneData.artworkUrl || currentSceneData.sketchUrl}
+          onSave={(sketchData) => {
+            setPendingSketch(sketchData);
+            setShowSketchCanvas(false);
+          }}
+          onClose={() => setShowSketchCanvas(false)}
+        />
+      )}
+    </div>
+  );
+};
+
+export default SceneView;

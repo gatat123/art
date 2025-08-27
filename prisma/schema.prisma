@@ -1,0 +1,110 @@
+// This is your Prisma schema file
+// Railway PostgreSQL 데이터베이스 연결
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  ownedStudios Studio[]
+  memberOf     StudioMember[]
+  projects     Project[]
+  comments     Comment[]
+}
+
+model Studio {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  inviteCode  String   @unique
+  ownerId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  owner    User           @relation(fields: [ownerId], references: [id])
+  members  StudioMember[]
+  projects Project[]
+}
+
+model StudioMember {
+  id       String @id @default(cuid())
+  studioId String
+  userId   String
+  role     String @default("member") // admin, member
+  joinedAt DateTime @default(now())
+
+  // Relations
+  studio Studio @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([studioId, userId])
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  studioId    String
+  title       String
+  episode     String?
+  status      String   @default("in_progress")
+  authorId    String
+  artistId    String?
+  dueDate     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  studio Studio @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  author User   @relation(fields: [authorId], references: [id])
+  scenes Scene[]
+}
+
+model Scene {
+  id          String   @id @default(cuid())
+  projectId   String
+  title       String
+  order       Int
+  status      String   @default("waiting_sketch")
+  narration   String?
+  description String?
+  sound       String?
+  sketchUrl   String?
+  artworkUrl  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  comments Comment[]
+}
+
+model Comment {
+  id         String   @id @default(cuid())
+  sceneId    String
+  userId     String
+  content    String
+  type       String   @default("general")
+  resolved   Boolean  @default(false)
+  sketchData String?
+  parentId   String?
+  createdAt  DateTime @default(now())
+
+  // Relations
+  scene   Scene     @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  user    User      @relation(fields: [userId], references: [id])
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies Comment[] @relation("CommentReplies")
+}

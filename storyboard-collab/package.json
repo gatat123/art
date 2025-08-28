@@ -1,11 +1,11 @@
 {
   "name": "storyboard-collab",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "prebuild": "npx rimraf .next || exit 0",
-    "build": "npm run prebuild && next build",
+    "build": "npm run prebuild && prisma generate && next build",
     "start": "next start",
     "start:with-migrate": "prisma migrate deploy && next start",
     "lint": "next lint",

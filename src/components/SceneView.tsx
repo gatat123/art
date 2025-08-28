@@ -3,7 +3,7 @@ import {
   Upload, MessageCircle, Check, ChevronLeft, ChevronRight, 
   MoreHorizontal, Send, Image, Download, Eye, AlertCircle, CheckCircle, 
   ArrowLeft, Share2, Bell, Edit2, X, Reply, Brush, Plus, CheckCheck, Tag,
-  History, Clock, ChevronDown
+  History, Clock, ChevronDown, Camera
 } from 'lucide-react';
 import SketchCanvas from './SketchCanvas';
 import AnnotationCanvas from './AnnotationCanvas';
@@ -66,6 +66,10 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
     replyTo, setReplyTo, replyText, setReplyText, newComment, setNewComment
   } = props;
 
+  // 파일 업로드를 위한 ref
+  const sketchInputRef = useRef<HTMLInputElement>(null);
+  const artworkInputRef = useRef<HTMLInputElement>(null);
+
   // 버전 관리 상태
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [selectedVersion, setSelectedVersion] = useState<Version | null>(null);
@@ -120,6 +124,65 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
 
   const filteredComments = comments.filter(c => c.sceneId === currentScene);
 
+  // 파일 업로드 핸들러
+  const handleSketchUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const url = event.target?.result as string;
+        const updatedScenes = [...(storyboard.scenes || [])];
+        updatedScenes[currentScene] = {
+          ...updatedScenes[currentScene],
+          sketchUrl: url
+        };
+        setStoryboard({ ...storyboard, scenes: updatedScenes });
+        
+        // 버전 히스토리에 추가
+        const newVersion: Version = {
+          id: `v${versions.length + 1}`,
+          type: 'sketch',
+          url: url,
+          timestamp: new Date().toLocaleString('ko-KR'),
+          author: '나',
+          message: '초안 업로드',
+          isCurrent: true
+        };
+        setVersions([...versions.map(v => ({ ...v, isCurrent: false })), newVersion]);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleArtworkUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const url = event.target?.result as string;
+        const updatedScenes = [...(storyboard.scenes || [])];
+        updatedScenes[currentScene] = {
+          ...updatedScenes[currentScene],
+          artworkUrl: url
+        };
+        setStoryboard({ ...storyboard, scenes: updatedScenes });
+        
+        // 버전 히스토리에 추가
+        const newVersion: Version = {
+          id: `v${versions.length + 1}`,
+          type: 'artwork',
+          url: url,
+          timestamp: new Date().toLocaleString('ko-KR'),
+          author: '나',
+          message: '아트워크 업로드',
+          isCurrent: true
+        };
+        setVersions([...versions.map(v => ({ ...v, isCurrent: false })), newVersion]);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const addComment = () => {
     if (newComment.trim() || pendingSketch) {
       const comment = {
@@ -132,7 +195,8 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
         type: 'comment' as CommentTag,
         resolved: false,
         replies: [],
-        sketchData: pendingSketch
+        sketchData: pendingSketch,
+        imageType: pendingSketch ? imageViewMode : null // 어떤 이미지에 대한 스케치인지 표시
       };
       setComments([...comments, comment]);
       setNewComment('');
@@ -190,16 +254,40 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
   const handleVersionSelect = (version: Version) => {
     setSelectedVersion(version);
     // 버전에 따라 이미지 업데이트
+    const updatedScenes = [...(storyboard.scenes || [])];
     if (version.type === 'sketch') {
-      currentSceneData.sketchUrl = version.url;
+      updatedScenes[currentScene] = {
+        ...updatedScenes[currentScene],
+        sketchUrl: version.url
+      };
     } else {
-      currentSceneData.artworkUrl = version.url;
+      updatedScenes[currentScene] = {
+        ...updatedScenes[currentScene],
+        artworkUrl: version.url
+      };
     }
+    setStoryboard({ ...storyboard, scenes: updatedScenes });
     setShowVersionHistory(false);
   };
 
   return (
     <div className="flex h-screen bg-gray-50">
+      {/* 숨겨진 파일 업로드 인풋 */}
+      <input
+        ref={sketchInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleSketchUpload}
+        className="hidden"
+      />
+      <input
+        ref={artworkInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleArtworkUpload}
+        className="hidden"
+      />
+
       {/* 왼쪽 패널 - 씬 리스트 */}
       <div className="w-64 bg-white border-r border-gray-200">
         <div className="p-4 border-b border-gray-200">
@@ -247,21 +335,65 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
       </div>
 
       {/* 메인 컨텐츠 */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col relative">
         {/* 상단 툴바 */}
         <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
           <div className="flex items-center space-x-4">
             <h2 className="text-xl font-bold">씬 {currentScene + 1}: {currentSceneData.title}</h2>
             
             {/* 버전 히스토리 버튼 */}
-            <button
-              onClick={() => setShowVersionHistory(!showVersionHistory)}
-              className="flex items-center space-x-2 px-3 py-1 bg-gray-100 rounded hover:bg-gray-200"
-            >
-              <History size={16} />
-              <span className="text-sm">버전 히스토리</span>
-              <ChevronDown size={16} className={`transform transition-transform ${showVersionHistory ? 'rotate-180' : ''}`} />
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setShowVersionHistory(!showVersionHistory)}
+                className="flex items-center space-x-2 px-3 py-1 bg-gray-100 rounded hover:bg-gray-200"
+              >
+                <History size={16} />
+                <span className="text-sm">버전 히스토리</span>
+                <ChevronDown size={16} className={`transform transition-transform ${showVersionHistory ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* 버전 히스토리 드롭다운 - 버튼 바로 아래에 위치 */}
+              {showVersionHistory && (
+                <div className="absolute top-full left-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                  <div className="p-3 border-b border-gray-200">
+                    <h3 className="font-semibold text-sm">버전 히스토리</h3>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    {versions.map((version) => (
+                      <button
+                        key={version.id}
+                        onClick={() => handleVersionSelect(version)}
+                        className={`w-full p-3 hover:bg-gray-50 border-b border-gray-100 text-left ${
+                          version.isCurrent ? 'bg-blue-50' : ''
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2">
+                              <span className={`text-xs px-2 py-0.5 rounded ${
+                                version.type === 'sketch' ? 'bg-gray-200' : 'bg-green-200'
+                              }`}>
+                                {version.type === 'sketch' ? '초안' : '아트워크'}
+                              </span>
+                              {version.isCurrent && (
+                                <span className="text-xs text-blue-600 font-semibold">현재 버전</span>
+                              )}
+                            </div>
+                            <p className="text-sm font-medium mt-1">{version.message}</p>
+                            <div className="flex items-center space-x-2 mt-1 text-xs text-gray-500">
+                              <Clock size={12} />
+                              <span>{version.timestamp}</span>
+                              <span>•</span>
+                              <span>{version.author}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center space-x-4">
@@ -323,55 +455,13 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                 }`}
               >
                 <Brush size={16} className="inline mr-2" />
-                주석
+                {imageViewMode === 'sketch' ? '초안 주석' : '아트워크 주석'}
               </button>
             )}
           </div>
         </div>
 
-        {/* 버전 히스토리 드롭다운 */}
-        {showVersionHistory && (
-          <div className="absolute top-16 right-6 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
-            <div className="p-3 border-b border-gray-200">
-              <h3 className="font-semibold text-sm">버전 히스토리</h3>
-            </div>
-            <div className="max-h-64 overflow-y-auto">
-              {versions.map((version) => (
-                <button
-                  key={version.id}
-                  onClick={() => handleVersionSelect(version)}
-                  className={`w-full p-3 hover:bg-gray-50 border-b border-gray-100 text-left ${
-                    version.isCurrent ? 'bg-blue-50' : ''
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2">
-                        <span className={`text-xs px-2 py-0.5 rounded ${
-                          version.type === 'sketch' ? 'bg-gray-200' : 'bg-green-200'
-                        }`}>
-                          {version.type === 'sketch' ? '초안' : '아트워크'}
-                        </span>
-                        {version.isCurrent && (
-                          <span className="text-xs text-blue-600 font-semibold">현재 버전</span>
-                        )}
-                      </div>
-                      <p className="text-sm font-medium mt-1">{version.message}</p>
-                      <div className="flex items-center space-x-2 mt-1 text-xs text-gray-500">
-                        <Clock size={12} />
-                        <span>{version.timestamp}</span>
-                        <span>•</span>
-                        <span>{version.author}</span>
-                      </div>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 메인 뷰 영역 - 이어서... */}
+        {/* 메인 뷰 영역 */}
         <div className="flex-1 overflow-y-auto p-6">
           <div className="max-w-6xl mx-auto space-y-6">
             {/* 씬 정보 */}
@@ -400,13 +490,21 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                   <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
                     <div className="flex items-center justify-between">
                       <span className="font-medium text-sm">초안 (스케치)</span>
-                      {currentSceneData.sketchUrl && (
-                        <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2">
+                        <button 
+                          onClick={() => sketchInputRef.current?.click()}
+                          className="p-1 hover:bg-gray-200 rounded flex items-center space-x-1"
+                          title="초안 업로드"
+                        >
+                          <Upload size={16} />
+                          <span className="text-xs">업로드</span>
+                        </button>
+                        {currentSceneData.sketchUrl && (
                           <button className="p-1 hover:bg-gray-200 rounded">
                             <Download size={16} />
                           </button>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="aspect-video bg-gray-100 flex items-center justify-center relative">
@@ -422,16 +520,20 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                           <div className="absolute inset-0 pointer-events-none">
                             <img 
                               src={annotations[`scene_${currentScene}_sketch`]}
-                              alt="주석"
+                              alt="초안 주석"
                               className="w-full h-full object-contain"
                             />
                           </div>
                         )}
                       </>
                     ) : (
-                      <div className="text-center text-gray-400">
-                        <Image size={48} className="mx-auto mb-2" />
-                        <p>초안 대기 중</p>
+                      <div 
+                        onClick={() => sketchInputRef.current?.click()}
+                        className="text-center text-gray-400 cursor-pointer hover:text-gray-600"
+                      >
+                        <Camera size={48} className="mx-auto mb-2" />
+                        <p>초안을 업로드하세요</p>
+                        <p className="text-xs mt-1">클릭하여 이미지 선택</p>
                       </div>
                     )}
                   </div>
@@ -444,22 +546,32 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                   <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
                     <div className="flex items-center justify-between">
                       <span className="font-medium text-sm">아트워크 (최종)</span>
-                      {currentSceneData.artworkUrl && (
-                        <div className="flex items-center space-x-2">
-                          {!compareMode && (
-                            <button 
-                              onClick={() => setShowSketchCanvas(true)}
-                              className="p-1 hover:bg-gray-200 rounded flex items-center space-x-1"
-                              title="스케치 추가"
-                            >
-                              <Brush size={16} />
+                      <div className="flex items-center space-x-2">
+                        <button 
+                          onClick={() => artworkInputRef.current?.click()}
+                          className="p-1 hover:bg-gray-200 rounded flex items-center space-x-1"
+                          title="아트워크 업로드"
+                        >
+                          <Upload size={16} />
+                          <span className="text-xs">업로드</span>
+                        </button>
+                        {currentSceneData.artworkUrl && (
+                          <>
+                            {!compareMode && (
+                              <button 
+                                onClick={() => setShowSketchCanvas(true)}
+                                className="p-1 hover:bg-gray-200 rounded flex items-center space-x-1"
+                                title="스케치 추가"
+                              >
+                                <Brush size={16} />
+                              </button>
+                            )}
+                            <button className="p-1 hover:bg-gray-200 rounded">
+                              <Download size={16} />
                             </button>
-                          )}
-                          <button className="p-1 hover:bg-gray-200 rounded">
-                            <Download size={16} />
-                          </button>
-                        </div>
-                      )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="aspect-video bg-gray-100 flex items-center justify-center relative">
@@ -475,16 +587,20 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                           <div className="absolute inset-0 pointer-events-none">
                             <img 
                               src={annotations[`scene_${currentScene}_artwork`]}
-                              alt="주석"
+                              alt="아트워크 주석"
                               className="w-full h-full object-contain"
                             />
                           </div>
                         )}
                       </>
                     ) : (
-                      <div className="text-center text-gray-400">
-                        <Image size={48} className="mx-auto mb-2" />
-                        <p>아트워크 대기 중</p>
+                      <div 
+                        onClick={() => artworkInputRef.current?.click()}
+                        className="text-center text-gray-400 cursor-pointer hover:text-gray-600"
+                      >
+                        <Camera size={48} className="mx-auto mb-2" />
+                        <p>아트워크를 업로드하세요</p>
+                        <p className="text-xs mt-1">클릭하여 이미지 선택</p>
                       </div>
                     )}
                   </div>
@@ -543,9 +659,8 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
         </div>
       </div>
 
-      {/* 오른쪽 패널 - 댓글 (변경 없음) */}
+      {/* 오른쪽 패널 - 댓글 */}
       <div className="w-96 bg-white border-l border-gray-200 flex flex-col">
-        {/* 기존 댓글 패널 코드 유지 */}
         <div className="h-14 border-b border-gray-200 flex items-center px-4">
           <div className="flex space-x-6">
             <button
@@ -571,7 +686,6 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
           </div>
         </div>
 
-        {/* 탭 컨텐츠는 기존 코드 유지 */}
         <div className="flex-1 overflow-y-auto">
           {activeTab === 'comments' && (
             <div className="p-4 space-y-4">
@@ -587,7 +701,6 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                       className={`flex space-x-3 p-2 rounded ${
                         selectedCommentId === comment.id ? 'bg-gray-100' : ''
                       }`}
-                      onClick={() => comment.sketchData && toggleSketchOverlay(comment.id)}
                     >
                       <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-xs font-bold">
                         {comment.avatar}
@@ -607,19 +720,34 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                             </span>
                           )}
                           {comment.sketchData && (
-                            <button className="bg-purple-100 text-purple-600 text-xs px-2 py-0.5 rounded flex items-center space-x-1">
+                            <button 
+                              onClick={() => toggleSketchOverlay(comment.id)}
+                              className="bg-purple-100 text-purple-600 text-xs px-2 py-0.5 rounded flex items-center space-x-1"
+                            >
                               <Brush size={10} />
-                              <span>스케치 포함</span>
+                              <span>{comment.imageType === 'sketch' ? '초안' : '아트워크'} 스케치</span>
                             </button>
                           )}
                         </div>
                         <p className="text-sm text-gray-700">{comment.content}</p>
+                        
+                        {/* 스케치 오버레이 표시 */}
+                        {showSketchOverlay === comment.id && comment.sketchData && (
+                          <div className="mt-2 p-2 bg-purple-50 rounded">
+                            <img 
+                              src={comment.sketchData} 
+                              alt="스케치"
+                              className="w-full rounded"
+                            />
+                            <p className="text-xs text-purple-600 mt-1 text-center">
+                              {comment.imageType === 'sketch' ? '초안' : '아트워크'}에 대한 스케치
+                            </p>
+                          </div>
+                        )}
+                        
                         <div className="flex items-center space-x-3 mt-2">
                           <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setReplyTo(comment.id);
-                            }}
+                            onClick={() => setReplyTo(comment.id)}
                             className="text-xs text-gray-400 hover:text-black flex items-center space-x-1"
                           >
                             <Reply size={12} />
@@ -627,10 +755,7 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                           </button>
                           {!comment.resolved && (
                             <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleResolve(comment.id);
-                              }}
+                              onClick={() => toggleResolve(comment.id)}
                               className="text-xs text-gray-400 hover:text-green-600 flex items-center gap-1"
                             >
                               <Check size={12} />
@@ -724,7 +849,9 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
           <div className="border-t border-gray-200 p-4">
             {pendingSketch && (
               <div className="mb-2 p-2 bg-purple-50 rounded flex items-center justify-between">
-                <span className="text-xs text-purple-600">스케치가 추가됨</span>
+                <span className="text-xs text-purple-600">
+                  {imageViewMode === 'sketch' ? '초안' : '아트워크'}에 스케치가 추가됨
+                </span>
                 <button onClick={() => setPendingSketch(null)} className="text-purple-600 hover:text-purple-800">
                   <X size={14} />
                 </button>
@@ -780,6 +907,76 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
           }}
           onClose={() => setShowAnnotation(false)}
         />
+      )}
+
+      {/* 씬 추가 모달 */}
+      {showAddSceneModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">새 씬 추가</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">씬 제목</label>
+                <input
+                  type="text"
+                  value={newSceneTitle}
+                  onChange={(e) => setNewSceneTitle(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+                  placeholder="씬 제목을 입력하세요"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">씬 설명</label>
+                <textarea
+                  value={newSceneDescription}
+                  onChange={(e) => setNewSceneDescription(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+                  rows={3}
+                  placeholder="씬 설명을 입력하세요"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowAddSceneModal(false);
+                  setNewSceneTitle('');
+                  setNewSceneDescription('');
+                }}
+                className="px-4 py-2 text-gray-600 hover:text-black"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => {
+                  if (newSceneTitle.trim()) {
+                    const newScene = {
+                      id: storyboard.scenes.length + 1,
+                      title: newSceneTitle,
+                      description: newSceneDescription,
+                      narration: '',
+                      sound: '',
+                      status: 'draft_pending',
+                      sketchUrl: null,
+                      artworkUrl: null
+                    };
+                    setStoryboard({
+                      ...storyboard,
+                      scenes: [...storyboard.scenes, newScene]
+                    });
+                    setCurrentScene(storyboard.scenes.length);
+                    setNewSceneTitle('');
+                    setNewSceneDescription('');
+                    setShowAddSceneModal(false);
+                  }
+                }}
+                className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800"
+              >
+                추가
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

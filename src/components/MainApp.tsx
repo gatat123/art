@@ -134,21 +134,35 @@ const MainApp: React.FC = () => {
     const sampleProjects = [
       {
         id: 1,
+        channelId: studioId,
         title: '환상의 숲',
-        description: '판타지 웹툰 프로젝트',
-        status: 'in-progress',
-        scenes: 12,
+        episode: '1화',
+        status: 'in_progress',
+        progress: 75,
+        dueDate: '2024-12-25',
+        assignee: '김작가',
         lastUpdated: '2024-12-19',
-        thumbnail: '/api/placeholder/300/200'
+        totalScenes: 12,
+        completedScenes: 9,
+        author: '김작가',
+        artist: '이화가',
+        createdAt: '2024-12-01'
       },
       {
         id: 2,
+        channelId: studioId,
         title: '도시의 영웅',
-        description: '액션 웹툰 프로젝트',
+        episode: '3화',
         status: 'review',
-        scenes: 8,
+        progress: 50,
+        dueDate: '2024-12-30',
+        assignee: '박작가',
         lastUpdated: '2024-12-18',
-        thumbnail: '/api/placeholder/300/200'
+        totalScenes: 8,
+        completedScenes: 4,
+        author: '박작가',
+        artist: '최화가',
+        createdAt: '2024-12-10'
       }
     ];
     setProjects(sampleProjects);

@@ -35,7 +35,7 @@ interface ProjectListViewProps {
   setShowCreateProject: (show: boolean) => void;
 }
 
-const ProjectListView: React.FC<ProjectListViewProps> = ({
+const ProjectListView2: React.FC<ProjectListViewProps> = ({
   channelName,
   channelId,
   projects,
@@ -221,4 +221,4 @@ const ProjectListView: React.FC<ProjectListViewProps> = ({
   );
 };
 
-export default ProjectListView;
+export default ProjectListView2;

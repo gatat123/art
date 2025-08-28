@@ -2,13 +2,14 @@ import React, { useRef, useEffect, useState } from 'react';
 import { 
   Upload, MessageCircle, Check, ChevronLeft, ChevronRight, 
   MoreHorizontal, Send, Image, Download, Eye, AlertCircle, CheckCircle, 
-  ArrowLeft, Share2, Bell, Edit2, X, Reply, Brush, Plus, CheckCheck
+  ArrowLeft, Share2, Bell, Edit2, X, Reply, Brush, Plus, CheckCheck, Tag
 } from 'lucide-react';
 import SketchCanvas from './SketchCanvas';
 import AnnotationCanvas from './AnnotationCanvas';
 
 type ViewType = 'login' | 'studios' | 'project' | 'scene';
 type ImageViewMode = 'sketch' | 'artwork' | null;
+type CommentTag = 'revision' | 'comment';
 
 interface SceneViewProps {
   storyboard: any;
@@ -64,7 +65,8 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
   const [newSceneDescription, setNewSceneDescription] = useState('');
   const [showAnnotation, setShowAnnotation] = useState(false);
   const [annotations, setAnnotations] = useState<{ [key: number]: string }>({});
-  const [showSketchOverlay, setShowSketchOverlay] = useState<number | null>(null);
+  const [showAnnotationOverlay, setShowAnnotationOverlay] = useState(false);
+  const [commentTag, setCommentTag] = useState<CommentTag>('comment');
 
   useEffect(() => {
     // 초기 댓글 데이터 설정
@@ -76,7 +78,8 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
         avatar: "김",
         time: "오후 2:13",
         content: "초안 확인했습니다. 전체적인 구도는 좋은 것 같아요!",
-        type: "general",
+        type: "comment",
+        tag: "comment",
         resolved: false,
         sketchData: null,
         parentId: null,
@@ -90,6 +93,7 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
         time: "오후 2:15",
         content: "주인공 표정이 좀 더 불안해 보였으면 좋겠어요. 눈썹을 조금 더 올려주세요.",
         type: "revision",
+        tag: "revision",
         resolved: false,
         sketchData: null,
         parentId: null,
@@ -193,6 +197,7 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
       time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
       content: "(주석이 추가되었습니다)",
       type: "annotation",
+      tag: "comment",
       resolved: false,
       annotationData: annotationData,
       parentId: null,
@@ -211,7 +216,8 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
         avatar: "나",
         time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
         content: newComment || "(스케치만 포함)",
-        type: "general",
+        type: commentTag === 'revision' ? 'revision' : 'general',
+        tag: commentTag,
         resolved: false,
         sketchData: pendingSketch,
         parentId: null,
@@ -262,20 +268,6 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
       return comment;
     });
     setComments(updatedComments);
-  };
-
-  // 주석 오버레이 토글
-  const toggleAnnotationOverlay = (commentId: number) => {
-    if (showSketchOverlay === commentId) {
-      setShowSketchOverlay(null);
-      setSelectedCommentId(null);
-    } else {
-      const comment = comments.find(c => c.id === commentId);
-      if (comment?.annotationData || comment?.sketchData) {
-        setShowSketchOverlay(commentId);
-        setSelectedCommentId(commentId);
-      }
-    }
   };
 
   return (
@@ -403,6 +395,15 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                 <Edit2 size={14} />
                 <span>주석</span>
               </button>
+              <button 
+                onClick={() => setShowAnnotationOverlay(!showAnnotationOverlay)}
+                className={`px-3 py-1 rounded text-sm flex items-center space-x-1 ${
+                  showAnnotationOverlay ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200'
+                }`}
+              >
+                <Eye size={14} />
+                <span>주석 {showAnnotationOverlay ? '숨기기' : '보기'}</span>
+              </button>
             </div>
           </div>
           
@@ -474,13 +475,22 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
               </button>
             )}
             
+            {/* 수정 완료 상태에서 수정요청 또는 최종승인 선택 가능 */}
             {currentSceneData.status === 'revision_complete' && (
-              <button 
-                onClick={() => updateSceneStatus('approved')}
-                className="px-4 py-1.5 bg-green-500 text-white rounded text-sm hover:bg-green-600"
-              >
-                최종 승인
-              </button>
+              <>
+                <button 
+                  onClick={() => updateSceneStatus('feedback_requested')}
+                  className="px-4 py-1.5 bg-orange-500 text-white rounded text-sm hover:bg-orange-600"
+                >
+                  수정 요청
+                </button>
+                <button 
+                  onClick={() => updateSceneStatus('approved')}
+                  className="px-4 py-1.5 bg-green-500 text-white rounded text-sm hover:bg-green-600"
+                >
+                  최종 승인
+                </button>
+              </>
             )}
             
             <button className="p-2 hover:bg-gray-100 rounded">
@@ -508,7 +518,7 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                     {currentSceneData.sketchUrl ? (
                       <div className="relative">
                         <img src={currentSceneData.sketchUrl} alt="초안" className="w-full rounded-lg shadow-lg" />
-                        {annotations[currentScene] && showSketchOverlay && (
+                        {annotations[currentScene] && showAnnotationOverlay && (
                           <img 
                             src={annotations[currentScene]} 
                             alt="주석" 
@@ -527,7 +537,7 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                     {currentSceneData.artworkUrl ? (
                       <div className="relative">
                         <img src={currentSceneData.artworkUrl} alt="아트워크" className="w-full rounded-lg shadow-lg" />
-                        {annotations[currentScene] && showSketchOverlay && (
+                        {annotations[currentScene] && showAnnotationOverlay && (
                           <img 
                             src={annotations[currentScene]} 
                             alt="주석" 
@@ -548,7 +558,7 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                   {imageViewMode === 'sketch' && currentSceneData.sketchUrl && (
                     <div className="relative">
                       <img src={currentSceneData.sketchUrl} alt="초안" className="w-full rounded-lg shadow-lg" />
-                      {annotations[currentScene] && showSketchOverlay && (
+                      {annotations[currentScene] && showAnnotationOverlay && (
                         <img 
                           src={annotations[currentScene]} 
                           alt="주석" 
@@ -560,7 +570,7 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                   {imageViewMode === 'artwork' && currentSceneData.artworkUrl && (
                     <div className="relative">
                       <img src={currentSceneData.artworkUrl} alt="아트워크" className="w-full rounded-lg shadow-lg" />
-                      {annotations[currentScene] && showSketchOverlay && (
+                      {annotations[currentScene] && showAnnotationOverlay && (
                         <img 
                           src={annotations[currentScene]} 
                           alt="주석" 
@@ -574,26 +584,6 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                       <p className="text-gray-400">이미지가 업로드되지 않았습니다</p>
                     </div>
                   )}
-                  
-                  {/* 주석/스케치 오버레이 */}
-                  {showSketchOverlay !== null && (
-                    <div className="absolute inset-0 pointer-events-none">
-                      {comments.find(c => c.id === showSketchOverlay)?.sketchData && (
-                        <img 
-                          src={comments.find(c => c.id === showSketchOverlay)?.sketchData || ''} 
-                          alt="스케치 오버레이" 
-                          className="w-full h-full object-contain opacity-60"
-                        />
-                      )}
-                      {comments.find(c => c.id === showSketchOverlay)?.annotationData && (
-                        <img 
-                          src={comments.find(c => c.id === showSketchOverlay)?.annotationData || ''} 
-                          alt="주석 오버레이" 
-                          className="w-full h-full object-contain opacity-60"
-                        />
-                      )}
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -603,7 +593,7 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
           <div className="w-96 bg-white border-l border-gray-200 flex flex-col">
             <div className="p-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <h3 className="font-bold">피드백</h3>
+                <h3 className="font-bold">댓글</h3>
                 <span className="text-sm text-gray-500">{filteredComments.length}개</span>
               </div>
             </div>
@@ -622,30 +612,26 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                           <div className="text-xs text-gray-500">{comment.time}</div>
                         </div>
                       </div>
-                      <button
-                        onClick={() => toggleResolve(comment.id)}
-                        className={`text-sm ${comment.resolved ? 'text-green-600' : 'text-gray-400'}`}
-                      >
-                        {comment.resolved ? <CheckCircle size={16} /> : <Check size={16} />}
-                      </button>
+                      <div className="flex items-center space-x-2">
+                        {comment.tag && (
+                          <span className={`text-xs px-2 py-1 rounded ${
+                            comment.tag === 'revision' 
+                              ? 'bg-orange-100 text-orange-600' 
+                              : 'bg-blue-100 text-blue-600'
+                          }`}>
+                            {comment.tag === 'revision' ? '수정요청' : '댓글'}
+                          </span>
+                        )}
+                        <button
+                          onClick={() => toggleResolve(comment.id)}
+                          className={`text-sm ${comment.resolved ? 'text-green-600' : 'text-gray-400'}`}
+                        >
+                          {comment.resolved ? <CheckCircle size={16} /> : <Check size={16} />}
+                        </button>
+                      </div>
                     </div>
                     
                     <p className="text-sm mb-2">{comment.content}</p>
-                    
-                    {(comment.sketchData || comment.annotationData) && (
-                      <div className="mb-2">
-                        <button
-                          onClick={() => toggleAnnotationOverlay(comment.id)}
-                          className={`text-xs px-2 py-1 rounded ${
-                            showSketchOverlay === comment.id
-                              ? 'bg-blue-500 text-white'
-                              : 'bg-gray-200 text-gray-600'
-                          }`}
-                        >
-                          {showSketchOverlay === comment.id ? '주석 숨기기' : '주석 보기'}
-                        </button>
-                      </div>
-                    )}
                     
                     <button
                       onClick={() => setReplyTo(comment.id)}
@@ -705,6 +691,34 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                   </button>
                 </div>
               )}
+              
+              {/* 태그 선택 */}
+              <div className="mb-2 flex items-center space-x-2">
+                <Tag size={16} className="text-gray-500" />
+                <label className="flex items-center space-x-1 cursor-pointer">
+                  <input 
+                    type="radio" 
+                    name="commentTag" 
+                    value="comment"
+                    checked={commentTag === 'comment'}
+                    onChange={() => setCommentTag('comment')}
+                    className="mr-1"
+                  />
+                  <span className="text-sm">댓글</span>
+                </label>
+                <label className="flex items-center space-x-1 cursor-pointer">
+                  <input 
+                    type="radio" 
+                    name="commentTag" 
+                    value="revision"
+                    checked={commentTag === 'revision'}
+                    onChange={() => setCommentTag('revision')}
+                    className="mr-1"
+                  />
+                  <span className="text-sm">수정요청</span>
+                </label>
+              </div>
+              
               <div className="flex space-x-2">
                 <button
                   onClick={() => setShowSketchCanvas(true)}
@@ -717,7 +731,7 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                   type="text"
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
-                  placeholder="피드백 입력..."
+                  placeholder="댓글 입력..."
                   className="flex-1 px-3 py-2 border border-gray-200 rounded"
                   onKeyPress={(e) => e.key === 'Enter' && addComment()}
                 />

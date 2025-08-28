@@ -2,11 +2,13 @@ import React, { useRef, useEffect, useState } from 'react';
 import { 
   Upload, MessageCircle, Check, ChevronLeft, ChevronRight, 
   MoreHorizontal, Send, Image, Download, Eye, AlertCircle, CheckCircle, 
-  ArrowLeft, Share2, Bell, Edit2, X, Reply, Brush
+  ArrowLeft, Share2, Bell, Edit2, X, Reply, Brush, Plus, CheckCheck
 } from 'lucide-react';
 import SketchCanvas from './SketchCanvas';
+import AnnotationCanvas from './AnnotationCanvas';
 
 type ViewType = 'login' | 'studios' | 'project' | 'scene';
+type ImageViewMode = 'sketch' | 'artwork' | null;
 
 interface SceneViewProps {
   storyboard: any;
@@ -54,7 +56,14 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const artworkInputRef = useRef<HTMLInputElement>(null);
-  const [overlaySketch, setOverlaySketch] = useState<string | null>(null);
+  
+  // 개선된 상태 관리
+  const [imageViewMode, setImageViewMode] = useState<ImageViewMode>('sketch');
+  const [showAddSceneModal, setShowAddSceneModal] = useState(false);
+  const [newSceneTitle, setNewSceneTitle] = useState('');
+  const [newSceneDescription, setNewSceneDescription] = useState('');
+  const [showAnnotation, setShowAnnotation] = useState(false);
+  const [annotations, setAnnotations] = useState<{ [key: number]: string }>({});
   const [showSketchOverlay, setShowSketchOverlay] = useState<number | null>(null);
 
   useEffect(() => {
@@ -108,6 +117,7 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
       'sketch_uploaded': { bg: 'bg-blue-100', text: 'text-blue-600', label: '초안 완료' },
       'artwork_uploaded': { bg: 'bg-yellow-100', text: 'text-yellow-600', label: '아트워크 검토중' },
       'feedback_requested': { bg: 'bg-orange-100', text: 'text-orange-600', label: '수정 요청' },
+      'revision_complete': { bg: 'bg-purple-100', text: 'text-purple-600', label: '수정 완료' },
       'approved': { bg: 'bg-green-100', text: 'text-green-600', label: '승인 완료' },
       'in_progress': { bg: 'bg-purple-100', text: 'text-purple-600', label: '작업 중' }
     };
@@ -142,6 +152,53 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
     const updatedScenes = [...storyboard.scenes];
     updatedScenes[currentScene].status = status;
     setStoryboard({ ...storyboard, scenes: updatedScenes });
+  };
+
+  // 새로운 씬 추가 함수
+  const addNewScene = () => {
+    if (newSceneTitle.trim()) {
+      const newScene = {
+        id: storyboard.scenes.length + 1,
+        title: newSceneTitle,
+        description: newSceneDescription,
+        sketchUrl: null,
+        artworkUrl: null,
+        status: 'waiting_sketch',
+        comments: []
+      };
+      
+      const updatedScenes = [...storyboard.scenes, newScene];
+      setStoryboard({ ...storyboard, scenes: updatedScenes });
+      setShowAddSceneModal(false);
+      setNewSceneTitle('');
+      setNewSceneDescription('');
+      setCurrentScene(updatedScenes.length - 1);
+    }
+  };
+
+  // 주석 저장 핸들러
+  const handleAnnotationSave = (annotationData: string) => {
+    setAnnotations({
+      ...annotations,
+      [currentScene]: annotationData
+    });
+    setShowAnnotation(false);
+    
+    // 댓글에 주석 추가
+    const comment = {
+      id: comments.length + 1,
+      sceneId: currentSceneData.id,
+      author: "나",
+      avatar: "나",
+      time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+      content: "(주석이 추가되었습니다)",
+      type: "annotation",
+      resolved: false,
+      annotationData: annotationData,
+      parentId: null,
+      replies: []
+    };
+    setComments([...comments, comment]);
   };
 
   // 댓글 추가
@@ -207,14 +264,14 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
     setComments(updatedComments);
   };
 
-  // 스케치 오버레이 토글
-  const toggleSketchOverlay = (commentId: number) => {
+  // 주석 오버레이 토글
+  const toggleAnnotationOverlay = (commentId: number) => {
     if (showSketchOverlay === commentId) {
       setShowSketchOverlay(null);
       setSelectedCommentId(null);
     } else {
       const comment = comments.find(c => c.id === commentId);
-      if (comment?.sketchData) {
+      if (comment?.annotationData || comment?.sketchData) {
         setShowSketchOverlay(commentId);
         setSelectedCommentId(commentId);
       }
@@ -281,10 +338,14 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
           </div>
         </div>
 
-        {/* 하단 액션 */}
+        {/* 하단 액션 - 씬 추가 버튼 */}
         <div className="p-4 border-t border-gray-200">
-          <button className="w-full px-4 py-2 bg-black text-white rounded hover:bg-gray-800">
-            씬 추가
+          <button 
+            onClick={() => setShowAddSceneModal(true)}
+            className="w-full px-4 py-2 bg-black text-white rounded hover:bg-gray-800 flex items-center justify-center space-x-2"
+          >
+            <Plus size={18} />
+            <span>씬 추가</span>
           </button>
         </div>
       </div>
@@ -301,25 +362,32 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
               {getStatusStyle(currentSceneData.status).label}
             </span>
             
+            {/* 개선된 이미지 선택 버튼 - 라디오 버튼 방식 */}
             <div className="flex items-center space-x-2 ml-8">
-              <button 
-                className={`px-3 py-1 rounded text-sm flex items-center space-x-1 ${
-                  showSketch ? 'bg-black text-white' : 'bg-gray-100 text-gray-600'
-                }`}
-                onClick={() => setShowSketch(!showSketch)}
-              >
+              <label className="flex items-center space-x-1 cursor-pointer">
+                <input 
+                  type="radio" 
+                  name="imageView" 
+                  value="sketch"
+                  checked={imageViewMode === 'sketch'}
+                  onChange={() => setImageViewMode('sketch')}
+                  className="mr-1"
+                />
                 <Eye size={14} />
-                <span>초안</span>
-              </button>
-              <button 
-                className={`px-3 py-1 rounded text-sm flex items-center space-x-1 ${
-                  showArtwork ? 'bg-black text-white' : 'bg-gray-100 text-gray-600'
-                }`}
-                onClick={() => setShowArtwork(!showArtwork)}
-              >
+                <span className="text-sm">초안</span>
+              </label>
+              <label className="flex items-center space-x-1 cursor-pointer">
+                <input 
+                  type="radio" 
+                  name="imageView" 
+                  value="artwork"
+                  checked={imageViewMode === 'artwork'}
+                  onChange={() => setImageViewMode('artwork')}
+                  className="mr-1"
+                />
                 <Eye size={14} />
-                <span>아트워크</span>
-              </button>
+                <span className="text-sm">아트워크</span>
+              </label>
               <button 
                 onClick={() => setCompareMode(!compareMode)}
                 className={`px-3 py-1 rounded text-sm ${
@@ -328,11 +396,18 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
               >
                 비교 모드
               </button>
+              <button 
+                onClick={() => setShowAnnotation(true)}
+                className="px-3 py-1 rounded text-sm bg-gray-100 hover:bg-gray-200 flex items-center space-x-1"
+              >
+                <Edit2 size={14} />
+                <span>주석</span>
+              </button>
             </div>
           </div>
           
           <div className="flex items-center space-x-2">
-            {/* 역할별 액션 버튼 */}
+            {/* 워크플로우 개선 - 역할별 액션 버튼 */}
             {currentSceneData.status === 'waiting_sketch' && (
               <>
                 <input 
@@ -388,6 +463,26 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
               </>
             )}
             
+            {/* 새로운 상태: 수정 완료 버튼 */}
+            {currentSceneData.status === 'feedback_requested' && (
+              <button 
+                onClick={() => updateSceneStatus('revision_complete')}
+                className="px-4 py-1.5 bg-purple-500 text-white rounded text-sm hover:bg-purple-600 flex items-center space-x-1"
+              >
+                <CheckCheck size={16} />
+                <span>수정 완료</span>
+              </button>
+            )}
+            
+            {currentSceneData.status === 'revision_complete' && (
+              <button 
+                onClick={() => updateSceneStatus('approved')}
+                className="px-4 py-1.5 bg-green-500 text-white rounded text-sm hover:bg-green-600"
+              >
+                최종 승인
+              </button>
+            )}
+            
             <button className="p-2 hover:bg-gray-100 rounded">
               <Download size={20} />
             </button>
@@ -400,33 +495,79 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
           </div>
         </div>
 
-        {/* 메인 컨텐츠 영역 - 여기서부터 추가해야 할 부분 */}
+        {/* 메인 컨텐츠 영역 - 개선된 이미지 뷰어 */}
         <div className="flex-1 flex">
           {/* 이미지 뷰어 영역 */}
           <div className="flex-1 bg-gray-100 p-8 overflow-auto">
             <div className="max-w-4xl mx-auto">
               {compareMode ? (
+                // 비교모드 - 양쪽에 동시 표시
                 <div className="grid grid-cols-2 gap-4">
-                  {showSketch && currentSceneData.sketchUrl && (
-                    <div>
-                      <h4 className="font-medium mb-2">초안</h4>
-                      <img src={currentSceneData.sketchUrl} alt="초안" className="w-full rounded-lg shadow-lg" />
-                    </div>
-                  )}
-                  {showArtwork && currentSceneData.artworkUrl && (
-                    <div>
-                      <h4 className="font-medium mb-2">아트워크</h4>
-                      <img src={currentSceneData.artworkUrl} alt="아트워크" className="w-full rounded-lg shadow-lg" />
-                    </div>
-                  )}
+                  <div className="relative">
+                    <h4 className="font-medium mb-2">초안</h4>
+                    {currentSceneData.sketchUrl ? (
+                      <div className="relative">
+                        <img src={currentSceneData.sketchUrl} alt="초안" className="w-full rounded-lg shadow-lg" />
+                        {annotations[currentScene] && showSketchOverlay && (
+                          <img 
+                            src={annotations[currentScene]} 
+                            alt="주석" 
+                            className="absolute inset-0 w-full h-full object-contain pointer-events-none opacity-60"
+                          />
+                        )}
+                      </div>
+                    ) : (
+                      <div className="bg-white rounded-lg p-12 text-center">
+                        <p className="text-gray-400">초안 미업로드</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <h4 className="font-medium mb-2">아트워크</h4>
+                    {currentSceneData.artworkUrl ? (
+                      <div className="relative">
+                        <img src={currentSceneData.artworkUrl} alt="아트워크" className="w-full rounded-lg shadow-lg" />
+                        {annotations[currentScene] && showSketchOverlay && (
+                          <img 
+                            src={annotations[currentScene]} 
+                            alt="주석" 
+                            className="absolute inset-0 w-full h-full object-contain pointer-events-none opacity-60"
+                          />
+                        )}
+                      </div>
+                    ) : (
+                      <div className="bg-white rounded-lg p-12 text-center">
+                        <p className="text-gray-400">아트워크 미업로드</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : (
+                // 일반 모드 - 선택된 이미지만 표시
                 <div className="relative">
-                  {showSketch && currentSceneData.sketchUrl && !showArtwork && (
-                    <img src={currentSceneData.sketchUrl} alt="초안" className="w-full rounded-lg shadow-lg" />
+                  {imageViewMode === 'sketch' && currentSceneData.sketchUrl && (
+                    <div className="relative">
+                      <img src={currentSceneData.sketchUrl} alt="초안" className="w-full rounded-lg shadow-lg" />
+                      {annotations[currentScene] && showSketchOverlay && (
+                        <img 
+                          src={annotations[currentScene]} 
+                          alt="주석" 
+                          className="absolute inset-0 w-full h-full object-contain pointer-events-none opacity-60"
+                        />
+                      )}
+                    </div>
                   )}
-                  {showArtwork && currentSceneData.artworkUrl && !showSketch && (
-                    <img src={currentSceneData.artworkUrl} alt="아트워크" className="w-full rounded-lg shadow-lg" />
+                  {imageViewMode === 'artwork' && currentSceneData.artworkUrl && (
+                    <div className="relative">
+                      <img src={currentSceneData.artworkUrl} alt="아트워크" className="w-full rounded-lg shadow-lg" />
+                      {annotations[currentScene] && showSketchOverlay && (
+                        <img 
+                          src={annotations[currentScene]} 
+                          alt="주석" 
+                          className="absolute inset-0 w-full h-full object-contain pointer-events-none opacity-60"
+                        />
+                      )}
+                    </div>
                   )}
                   {!currentSceneData.sketchUrl && !currentSceneData.artworkUrl && (
                     <div className="bg-white rounded-lg p-12 text-center">
@@ -434,13 +575,20 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                     </div>
                   )}
                   
-                  {/* 스케치 오버레이 */}
+                  {/* 주석/스케치 오버레이 */}
                   {showSketchOverlay !== null && (
                     <div className="absolute inset-0 pointer-events-none">
                       {comments.find(c => c.id === showSketchOverlay)?.sketchData && (
                         <img 
                           src={comments.find(c => c.id === showSketchOverlay)?.sketchData || ''} 
                           alt="스케치 오버레이" 
+                          className="w-full h-full object-contain opacity-60"
+                        />
+                      )}
+                      {comments.find(c => c.id === showSketchOverlay)?.annotationData && (
+                        <img 
+                          src={comments.find(c => c.id === showSketchOverlay)?.annotationData || ''} 
+                          alt="주석 오버레이" 
                           className="w-full h-full object-contain opacity-60"
                         />
                       )}
@@ -484,17 +632,17 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                     
                     <p className="text-sm mb-2">{comment.content}</p>
                     
-                    {comment.sketchData && (
+                    {(comment.sketchData || comment.annotationData) && (
                       <div className="mb-2">
                         <button
-                          onClick={() => toggleSketchOverlay(comment.id)}
+                          onClick={() => toggleAnnotationOverlay(comment.id)}
                           className={`text-xs px-2 py-1 rounded ${
                             showSketchOverlay === comment.id
                               ? 'bg-blue-500 text-white'
                               : 'bg-gray-200 text-gray-600'
                           }`}
                         >
-                          {showSketchOverlay === comment.id ? '스케치 숨기기' : '스케치 보기'}
+                          {showSketchOverlay === comment.id ? '주석 숨기기' : '주석 보기'}
                         </button>
                       </div>
                     )}
@@ -594,6 +742,66 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
           }}
           onClose={() => setShowSketchCanvas(false)}
         />
+      )}
+      
+      {/* 주석 캔버스 모달 */}
+      {showAnnotation && (
+        <AnnotationCanvas 
+          backgroundImage={
+            imageViewMode === 'sketch' 
+              ? currentSceneData.sketchUrl 
+              : currentSceneData.artworkUrl
+          }
+          onSave={handleAnnotationSave}
+          onClose={() => setShowAnnotation(false)}
+        />
+      )}
+      
+      {/* 씬 추가 모달 */}
+      {showAddSceneModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96">
+            <h2 className="text-xl font-bold mb-4">새 씬 추가</h2>
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2">씬 제목</label>
+              <input
+                type="text"
+                value={newSceneTitle}
+                onChange={(e) => setNewSceneTitle(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded"
+                placeholder="예: 주인공 등장"
+                autoFocus
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2">씬 설명</label>
+              <textarea
+                value={newSceneDescription}
+                onChange={(e) => setNewSceneDescription(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded h-24 resize-none"
+                placeholder="씬에 대한 상세 설명을 입력하세요"
+              />
+            </div>
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => {
+                  setShowAddSceneModal(false);
+                  setNewSceneTitle('');
+                  setNewSceneDescription('');
+                }}
+                className="px-4 py-2 text-gray-600 hover:text-black"
+              >
+                취소
+              </button>
+              <button
+                onClick={addNewScene}
+                className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800"
+              >
+                추가
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

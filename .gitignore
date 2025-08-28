@@ -38,3 +38,24 @@ Dockerfile.backup
 .dockerignore.backup
 nixpacks.toml.backup
 vercel.json.backup
+
+# Logs
+logs
+*.log
+dev-debug.log
+# Dependency directories
+# Environment variables
+.env
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+# OS specific
+
+# Task files
+# tasks.json
+# tasks/ 

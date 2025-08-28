@@ -49,7 +49,16 @@ const ProjectListView: React.FC<ProjectListViewProps> = ({
   showCreateProject,
   setShowCreateProject
 }) => {
-  const channelProjects = projects.filter(p => p.channelId === currentChannel?.id);
+  const channelProjects = currentChannel?.id 
+    ? projects.filter(p => p.channelId === currentChannel.id)
+    : projects.filter(p => p.channelId === 'default' || !p.channelId);
+  
+  // 기본값 설정
+  const displayChannel = currentChannel || {
+    id: 'default',
+    name: '프로젝트',
+    projectCount: 0
+  };
 
   const getStatusStyle = (status: string) => {
     const styles: Record<string, any> = {
@@ -65,9 +74,11 @@ const ProjectListView: React.FC<ProjectListViewProps> = ({
   };
 
   const createProject = (projectData: any) => {
+    const channelId = currentChannel?.id || 'default';
+    
     const newProject = {
       ...projectData,
-      channelId: currentChannel.id,
+      channelId: channelId,
       author: projectData.author || "나",
       artist: projectData.artist || "",
       createdAt: new Date().toISOString().split('T')[0],
@@ -88,14 +99,16 @@ const ProjectListView: React.FC<ProjectListViewProps> = ({
     setProjects([...projects, newProject]);
     setShowCreateProject(false);
     
-    const updatedChannels = channels.map(ch => 
-      ch.id === currentChannel.id 
-        ? { ...ch, projectCount: ch.projectCount + 1 }
-        : ch
-    );
-    setChannels(updatedChannels);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('channels', JSON.stringify(updatedChannels));
+    if (currentChannel) {
+      const updatedChannels = channels.map(ch => 
+        ch.id === currentChannel.id 
+          ? { ...ch, projectCount: ch.projectCount + 1 }
+          : ch
+      );
+      setChannels(updatedChannels);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('channels', JSON.stringify(updatedChannels));
+      }
     }
   };
 
@@ -114,7 +127,7 @@ const ProjectListView: React.FC<ProjectListViewProps> = ({
               </button>
               <div className="flex items-center space-x-2">
                 <Hash size={20} />
-                <h1 className="text-2xl font-bold">{currentChannel?.name}</h1>
+                <h1 className="text-2xl font-bold">{displayChannel.name}</h1>
               </div>
               <span className="px-2 py-1 bg-gray-100 text-gray-600 text-sm rounded">
                 {channelProjects.length}개 프로젝트
@@ -228,7 +241,7 @@ const ProjectListView: React.FC<ProjectListViewProps> = ({
         isOpen={showCreateProject}
         onClose={() => setShowCreateProject(false)}
         onCreate={createProject}
-        channelName={currentChannel?.name}
+        channelName={displayChannel.name}
       />
     </div>
   );

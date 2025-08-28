@@ -18,6 +18,7 @@ const MainApp: React.FC = () => {
   const [studios, setStudios] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [storyboard, setStoryboard] = useState<any>(null);
+  const [showCreateProject, setShowCreateProject] = useState(false);
   
   // UI state
   const [activeTab, setActiveTab] = useState('storyboards');
@@ -131,8 +132,8 @@ const MainApp: React.FC = () => {
           }}
           setStoryboard={setStoryboard}
           notifications={notifications}
-          showCreateProject={false}
-          setShowCreateProject={() => {}}
+          showCreateProject={showCreateProject}
+          setShowCreateProject={setShowCreateProject}
         />
       );
 

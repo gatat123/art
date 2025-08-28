@@ -134,35 +134,21 @@ const MainApp: React.FC = () => {
     const sampleProjects = [
       {
         id: 1,
-        channelId: studioId,
         title: '환상의 숲',
-        episode: '1화',
-        status: 'in_progress',
-        progress: 75,
-        dueDate: '2024-12-25',
-        assignee: '김작가',
+        description: '판타지 웹툰 프로젝트',
+        status: 'in-progress',
+        scenes: 12,
         lastUpdated: '2024-12-19',
-        totalScenes: 12,
-        completedScenes: 9,
-        author: '김작가',
-        artist: '이화가',
-        createdAt: '2024-12-01'
+        thumbnail: '/api/placeholder/300/200'
       },
       {
         id: 2,
-        channelId: studioId,
         title: '도시의 영웅',
-        episode: '3화',
+        description: '액션 웹툰 프로젝트',
         status: 'review',
-        progress: 50,
-        dueDate: '2024-12-30',
-        assignee: '박작가',
+        scenes: 8,
         lastUpdated: '2024-12-18',
-        totalScenes: 8,
-        completedScenes: 4,
-        author: '박작가',
-        artist: '최화가',
-        createdAt: '2024-12-10'
+        thumbnail: '/api/placeholder/300/200'
       }
     ];
     setProjects(sampleProjects);
@@ -276,7 +262,7 @@ const MainApp: React.FC = () => {
           projects={projects}
           setProjects={setProjects}
           onSelectProject={handleSelectProject}
-          currentView="project"
+          currentView={currentView}
           setCurrentView={setCurrentView}
           showCreateProject={showCreateProject}
           setShowCreateProject={setShowCreateProject}

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import AuthForm from './AuthForm';
 import StudioList from './StudioList';
-import ProjectListView2 from './ProjectListView2';
+import ProjectListView from './ProjectListView';
 import SceneView from './SceneView';
 
 type ViewType = 'login' | 'studios' | 'project' | 'scene';
@@ -256,7 +256,7 @@ const MainApp: React.FC = () => {
 
     case 'project':
       return (
-        <ProjectListView2
+        <ProjectListView
           channelName={selectedStudio?.name || '스튜디오'}
           channelId={selectedStudio?.id || 0}
           projects={projects}

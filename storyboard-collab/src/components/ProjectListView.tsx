@@ -34,6 +34,7 @@ interface ProjectListViewProps {
   showCreateProject: boolean;
   setShowCreateProject: (show: boolean) => void;
 }
+
 const ProjectListView: React.FC<ProjectListViewProps> = ({
   channelName,
   channelId,

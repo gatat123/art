@@ -1,10 +1,11 @@
 {
   "name": "storyboard-collab",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "prebuild": "rm -rf .next || true",
+    "build": "npm run prebuild && prisma generate && next build",
     "start": "next start",
     "start:with-migrate": "prisma migrate deploy && next start",
     "lint": "next lint",

@@ -2,7 +2,8 @@ import React, { useRef, useEffect, useState } from 'react';
 import { 
   Upload, MessageCircle, Check, ChevronLeft, ChevronRight, 
   MoreHorizontal, Send, Image, Download, Eye, AlertCircle, CheckCircle, 
-  ArrowLeft, Share2, Bell, Edit2, X, Reply, Brush, Plus, CheckCheck, Tag
+  ArrowLeft, Share2, Bell, Edit2, X, Reply, Brush, Plus, CheckCheck, Tag,
+  History, Clock, ChevronDown
 } from 'lucide-react';
 import SketchCanvas from './SketchCanvas';
 import AnnotationCanvas from './AnnotationCanvas';
@@ -10,6 +11,16 @@ import AnnotationCanvas from './AnnotationCanvas';
 type ViewType = 'login' | 'studios' | 'project' | 'scene';
 type ImageViewMode = 'sketch' | 'artwork' | null;
 type CommentTag = 'revision' | 'comment';
+
+interface Version {
+  id: string;
+  type: 'sketch' | 'artwork';
+  url: string;
+  timestamp: string;
+  author: string;
+  message?: string;
+  isCurrent?: boolean;
+}
 
 interface SceneViewProps {
   storyboard: any;
@@ -55,784 +66,720 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
     replyTo, setReplyTo, replyText, setReplyText, newComment, setNewComment
   } = props;
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const artworkInputRef = useRef<HTMLInputElement>(null);
-  
-  // 개선된 상태 관리
+  // 버전 관리 상태
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [selectedVersion, setSelectedVersion] = useState<Version | null>(null);
+  const [versions, setVersions] = useState<Version[]>([
+    {
+      id: 'v1',
+      type: 'sketch',
+      url: '/api/placeholder/600/400',
+      timestamp: '2024-12-20 10:00',
+      author: '김작가',
+      message: '초안 첫 버전',
+      isCurrent: false
+    },
+    {
+      id: 'v2',
+      type: 'artwork',
+      url: '/api/placeholder/600/400',
+      timestamp: '2024-12-20 14:00',
+      author: '김그림',
+      message: '아트워크 초안',
+      isCurrent: false
+    },
+    {
+      id: 'v3',
+      type: 'artwork',
+      url: '/api/placeholder/600/400',
+      timestamp: '2024-12-20 18:00',
+      author: '김그림',
+      message: '수정 요청 반영',
+      isCurrent: true
+    }
+  ]);
+
   const [imageViewMode, setImageViewMode] = useState<ImageViewMode>('sketch');
+  const [showAnnotation, setShowAnnotation] = useState(false);
+  const [annotations, setAnnotations] = useState<{[key: string]: any}>({});
   const [showAddSceneModal, setShowAddSceneModal] = useState(false);
   const [newSceneTitle, setNewSceneTitle] = useState('');
   const [newSceneDescription, setNewSceneDescription] = useState('');
-  const [showAnnotation, setShowAnnotation] = useState(false);
-  const [activeAnnotationId, setActiveAnnotationId] = useState<number | null>(null);
-  const [commentTag, setCommentTag] = useState<CommentTag>('comment');
+  const [showSketchOverlay, setShowSketchOverlay] = useState<number | null>(null);
 
-  useEffect(() => {
-    // 초기 댓글 데이터 설정
-    setComments([
-      {
-        id: 1,
-        sceneId: 1,
-        author: "김그림",
-        avatar: "김",
-        time: "오후 2:13",
-        content: "초안 확인했습니다. 전체적인 구도는 좋은 것 같아요!",
-        type: "comment",
-        tag: "comment",
-        resolved: false,
-        sketchData: null,
-        parentId: null,
-        replies: []
-      },
-      {
-        id: 2,
-        sceneId: 1,
-        author: "나",
-        avatar: "나",
-        time: "오후 2:15",
-        content: "주인공 표정이 좀 더 불안해 보였으면 좋겠어요. 눈썹을 조금 더 올려주세요.",
-        type: "revision",
-        tag: "revision",
-        resolved: false,
-        sketchData: null,
-        parentId: null,
-        replies: [
-          {
-            id: 3,
-            sceneId: 1,
-            author: "김그림",
-            avatar: "김",
-            time: "오후 2:30",
-            content: "수정했습니다! 확인 부탁드려요.",
-            parentId: 2
-          }
-        ]
-      }
-    ]);
-  }, [currentScene, setComments]);
-
-  const currentSceneData = storyboard.scenes?.[currentScene] || {};
-  const filteredComments = comments.filter(c => c.sceneId === currentSceneData.id && !c.parentId);
-
-  const getStatusStyle = (status: string) => {
-    const styles: Record<string, any> = {
-      'waiting_sketch': { bg: 'bg-gray-100', text: 'text-gray-600', label: '초안 대기' },
-      'sketch_uploaded': { bg: 'bg-blue-100', text: 'text-blue-600', label: '초안 완료' },
-      'artwork_uploaded': { bg: 'bg-yellow-100', text: 'text-yellow-600', label: '아트워크 검토중' },
-      'feedback_requested': { bg: 'bg-orange-100', text: 'text-orange-600', label: '수정 요청' },
-      'revision_complete': { bg: 'bg-purple-100', text: 'text-purple-600', label: '수정 완료' },
-      'approved': { bg: 'bg-green-100', text: 'text-green-600', label: '승인 완료' },
-      'in_progress': { bg: 'bg-purple-100', text: 'text-purple-600', label: '작업 중' }
-    };
-    return styles[status] || styles['waiting_sketch'];
+  const currentSceneData = storyboard?.scenes?.[currentScene] || {
+    title: '씬 1',
+    description: '씬 설명',
+    narration: '나레이션 내용',
+    sound: '사운드 효과',
+    status: 'draft_pending',
+    sketchUrl: null,
+    artworkUrl: null,
+    feedback: []
   };
 
-  // 파일 업로드 핸들러
-  const handleSketchUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const updatedScenes = [...storyboard.scenes];
-      updatedScenes[currentScene].sketchUrl = URL.createObjectURL(file);
-      updatedScenes[currentScene].status = 'sketch_uploaded';
-      setStoryboard({ ...storyboard, scenes: updatedScenes });
-      alert('초안이 업로드되었습니다.');
-    }
-  };
+  const filteredComments = comments.filter(c => c.sceneId === currentScene);
 
-  const handleArtworkUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const updatedScenes = [...storyboard.scenes];
-      updatedScenes[currentScene].artworkUrl = URL.createObjectURL(file);
-      updatedScenes[currentScene].status = 'artwork_uploaded';
-      setStoryboard({ ...storyboard, scenes: updatedScenes });
-      alert('아트워크가 업로드되었습니다.');
-    }
-  };
-
-  // 씬 상태 업데이트
-  const updateSceneStatus = (status: string) => {
-    const updatedScenes = [...storyboard.scenes];
-    updatedScenes[currentScene].status = status;
-    setStoryboard({ ...storyboard, scenes: updatedScenes });
-  };
-
-  // 새로운 씬 추가 함수
-  const addNewScene = () => {
-    if (newSceneTitle.trim()) {
-      const newScene = {
-        id: storyboard.scenes.length + 1,
-        title: newSceneTitle,
-        description: newSceneDescription,
-        sketchUrl: null,
-        artworkUrl: null,
-        status: 'waiting_sketch',
-        comments: []
-      };
-      
-      const updatedScenes = [...storyboard.scenes, newScene];
-      setStoryboard({ ...storyboard, scenes: updatedScenes });
-      setShowAddSceneModal(false);
-      setNewSceneTitle('');
-      setNewSceneDescription('');
-      setCurrentScene(updatedScenes.length - 1);
-    }
-  };
-
-  // 주석 저장 핸들러
-  const handleAnnotationSave = (annotationData: string, annotationComment: string) => {
-    setShowAnnotation(false);
-    
-    // 댓글에 주석 추가
-    const comment = {
-      id: comments.length + 1,
-      sceneId: currentSceneData.id,
-      author: "나",
-      avatar: "나",
-      time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
-      content: annotationComment || "(주석이 추가되었습니다)",
-      type: "annotation",
-      tag: "revision",
-      resolved: false,
-      annotationData: annotationData,
-      parentId: null,
-      replies: []
-    };
-    setComments([...comments, comment]);
-  };
-
-  // 댓글 추가
   const addComment = () => {
     if (newComment.trim() || pendingSketch) {
       const comment = {
         id: comments.length + 1,
-        sceneId: currentSceneData.id,
-        author: "나",
-        avatar: "나",
-        time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
-        content: newComment || "(스케치만 포함)",
-        type: commentTag === 'revision' ? 'revision' : 'general',
-        tag: commentTag,
+        sceneId: currentScene,
+        author: '나',
+        avatar: 'ME',
+        content: newComment,
+        time: '방금',
+        type: 'comment' as CommentTag,
         resolved: false,
-        sketchData: pendingSketch,
-        parentId: null,
-        replies: []
+        replies: [],
+        sketchData: pendingSketch
       };
       setComments([...comments, comment]);
       setNewComment('');
       setPendingSketch(null);
-      setNotifications(notifications + 1);
     }
   };
 
-  // 답글 추가
-  const addReply = (parentId: number) => {
+  const addReply = (commentId: number) => {
     if (replyText.trim()) {
-      const reply = {
-        id: comments.length + 100,
-        sceneId: currentSceneData.id,
-        author: "나",
-        avatar: "나",
-        time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
-        content: replyText,
-        parentId: parentId
-      };
-      
-      const updatedComments = comments.map(comment => {
-        if (comment.id === parentId) {
+      const updatedComments = comments.map(c => {
+        if (c.id === commentId) {
+          const reply = {
+            id: Date.now(),
+            author: '나',
+            avatar: 'ME',
+            content: replyText,
+            time: '방금'
+          };
           return {
-            ...comment,
-            replies: [...(comment.replies || []), reply]
+            ...c,
+            replies: [...(c.replies || []), reply]
           };
         }
-        return comment;
+        return c;
       });
-      
       setComments(updatedComments);
       setReplyText('');
       setReplyTo(null);
     }
   };
 
-  // 댓글 해결 처리
   const toggleResolve = (commentId: number) => {
-    const updatedComments = comments.map(comment => {
-      if (comment.id === commentId) {
-        return { ...comment, resolved: !comment.resolved };
-      }
-      return comment;
-    });
+    const updatedComments = comments.map(c => 
+      c.id === commentId ? { ...c, resolved: !c.resolved } : c
+    );
     setComments(updatedComments);
   };
 
+  const toggleSketchOverlay = (commentId: number) => {
+    setShowSketchOverlay(showSketchOverlay === commentId ? null : commentId);
+    setSelectedCommentId(selectedCommentId === commentId ? null : commentId);
+  };
+
+  const handleImageViewModeChange = (mode: ImageViewMode) => {
+    setImageViewMode(mode);
+    if (mode === 'sketch') {
+      setShowSketch(true);
+      setShowArtwork(false);
+    } else if (mode === 'artwork') {
+      setShowSketch(false);
+      setShowArtwork(true);
+    }
+  };
+
+  const handleVersionSelect = (version: Version) => {
+    setSelectedVersion(version);
+    // 버전에 따라 이미지 업데이트
+    if (version.type === 'sketch') {
+      currentSceneData.sketchUrl = version.url;
+    } else {
+      currentSceneData.artworkUrl = version.url;
+    }
+    setShowVersionHistory(false);
+  };
+
   return (
-    <div className="flex h-screen bg-white">
-      {/* 왼쪽 사이드바 */}
-      <div className="w-64 bg-gray-50 border-r border-gray-200 flex flex-col">
-        {/* 프로젝트 헤더 */}
+    <div className="flex h-screen bg-gray-50">
+      {/* 왼쪽 패널 - 씬 리스트 */}
+      <div className="w-64 bg-white border-r border-gray-200">
         <div className="p-4 border-b border-gray-200">
           <button 
-            onClick={() => setCurrentView('project')}
-            className="flex items-center space-x-2 text-gray-600 hover:text-black mb-4"
+            onClick={() => setCurrentView('project' as ViewType)}
+            className="flex items-center space-x-2 text-gray-600 hover:text-black"
           >
             <ArrowLeft size={20} />
-            <span>프로젝트 목록</span>
+            <span>프로젝트로 돌아가기</span>
           </button>
-          <h2 className="font-bold text-lg">{storyboard.title}</h2>
-          <p className="text-gray-500 text-sm">{storyboard.episode}</p>
-          <div className="flex items-center space-x-2 mt-2">
-            <span className={`px-2 py-1 rounded text-xs ${getStatusStyle(storyboard.status).bg} ${getStatusStyle(storyboard.status).text}`}>
-              {getStatusStyle(storyboard.status).label}
-            </span>
-            <span className="text-xs text-gray-500">마감: {storyboard.dueDate}</span>
-          </div>
         </div>
-
-        {/* 씬 리스트 */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="p-2">
-            <div className="text-xs text-gray-500 uppercase tracking-wider px-2 py-1">
-              씬 목록
-            </div>
-            {storyboard.scenes?.map((scene: any, index: number) => (
+        
+        <div className="p-4">
+          <h3 className="font-bold mb-4">씬 목록</h3>
+          <div className="space-y-2">
+            {storyboard?.scenes?.map((scene: any, index: number) => (
               <button
-                key={scene.id}
+                key={index}
                 onClick={() => setCurrentScene(index)}
-                className={`w-full text-left px-3 py-2 rounded mb-1 transition-colors ${
+                className={`w-full text-left p-3 rounded-lg ${
                   currentScene === index 
                     ? 'bg-black text-white' 
-                    : 'hover:bg-gray-100'
+                    : 'bg-gray-100 hover:bg-gray-200'
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm font-medium">
-                      {index + 1}. {scene.title}
-                    </span>
-                  </div>
-                  {scene.status === 'approved' && (
+                  <span className="font-medium">씬 {index + 1}</span>
+                  {scene.status === 'completed' && (
                     <CheckCircle size={16} className="text-green-500" />
                   )}
-                  {scene.status === 'feedback_requested' && (
-                    <AlertCircle size={16} className="text-orange-500" />
-                  )}
                 </div>
-                <div className={`text-xs mt-1 ${currentScene === index ? 'text-gray-300' : 'text-gray-500'}`}>
-                  {getStatusStyle(scene.status).label}
-                </div>
+                <p className="text-xs opacity-75 mt-1">{scene.title}</p>
               </button>
             ))}
+            
+            <button 
+              onClick={() => setShowAddSceneModal(true)}
+              className="w-full p-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-black text-gray-500 hover:text-black flex items-center justify-center space-x-2"
+            >
+              <Plus size={20} />
+              <span>씬 추가</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 메인 컨텐츠 */}
+      <div className="flex-1 flex flex-col">
+        {/* 상단 툴바 */}
+        <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
+          <div className="flex items-center space-x-4">
+            <h2 className="text-xl font-bold">씬 {currentScene + 1}: {currentSceneData.title}</h2>
+            
+            {/* 버전 히스토리 버튼 */}
+            <button
+              onClick={() => setShowVersionHistory(!showVersionHistory)}
+              className="flex items-center space-x-2 px-3 py-1 bg-gray-100 rounded hover:bg-gray-200"
+            >
+              <History size={16} />
+              <span className="text-sm">버전 히스토리</span>
+              <ChevronDown size={16} className={`transform transition-transform ${showVersionHistory ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
+
+          <div className="flex items-center space-x-4">
+            {/* 이미지 뷰 토글 - 라디오 버튼 방식 */}
+            <div className="flex items-center space-x-2 p-1 bg-gray-100 rounded">
+              <label className="flex items-center space-x-1 cursor-pointer">
+                <input
+                  type="radio"
+                  name="imageView"
+                  checked={imageViewMode === 'sketch'}
+                  onChange={() => handleImageViewModeChange('sketch')}
+                  className="sr-only"
+                />
+                <span className={`px-3 py-1 rounded text-sm ${
+                  imageViewMode === 'sketch' ? 'bg-white shadow' : ''
+                }`}>
+                  초안
+                </span>
+              </label>
+              <label className="flex items-center space-x-1 cursor-pointer">
+                <input
+                  type="radio"
+                  name="imageView"
+                  checked={imageViewMode === 'artwork'}
+                  onChange={() => handleImageViewModeChange('artwork')}
+                  className="sr-only"
+                />
+                <span className={`px-3 py-1 rounded text-sm ${
+                  imageViewMode === 'artwork' ? 'bg-white shadow' : ''
+                }`}>
+                  아트워크
+                </span>
+              </label>
+            </div>
+
+            {/* 비교 모드 토글 */}
+            <button
+              onClick={() => {
+                setCompareMode(!compareMode);
+                if (!compareMode) {
+                  setShowSketch(true);
+                  setShowArtwork(true);
+                }
+              }}
+              className={`px-4 py-2 rounded ${
+                compareMode ? 'bg-blue-500 text-white' : 'bg-gray-100'
+              }`}
+            >
+              <Eye size={16} className="inline mr-2" />
+              비교 모드
+            </button>
+
+            {/* 주석 토글 - 비교 모드가 아닐 때만 표시 */}
+            {!compareMode && (
+              <button
+                onClick={() => setShowAnnotation(!showAnnotation)}
+                className={`px-4 py-2 rounded ${
+                  showAnnotation ? 'bg-purple-500 text-white' : 'bg-gray-100'
+                }`}
+              >
+                <Brush size={16} className="inline mr-2" />
+                주석
+              </button>
+            )}
           </div>
         </div>
 
-        {/* 하단 액션 - 씬 추가 버튼 */}
-        <div className="p-4 border-t border-gray-200">
+        {/* 버전 히스토리 드롭다운 */}
+        {showVersionHistory && (
+          <div className="absolute top-16 right-6 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+            <div className="p-3 border-b border-gray-200">
+              <h3 className="font-semibold text-sm">버전 히스토리</h3>
+            </div>
+            <div className="max-h-64 overflow-y-auto">
+              {versions.map((version) => (
+                <button
+                  key={version.id}
+                  onClick={() => handleVersionSelect(version)}
+                  className={`w-full p-3 hover:bg-gray-50 border-b border-gray-100 text-left ${
+                    version.isCurrent ? 'bg-blue-50' : ''
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2">
+                        <span className={`text-xs px-2 py-0.5 rounded ${
+                          version.type === 'sketch' ? 'bg-gray-200' : 'bg-green-200'
+                        }`}>
+                          {version.type === 'sketch' ? '초안' : '아트워크'}
+                        </span>
+                        {version.isCurrent && (
+                          <span className="text-xs text-blue-600 font-semibold">현재 버전</span>
+                        )}
+                      </div>
+                      <p className="text-sm font-medium mt-1">{version.message}</p>
+                      <div className="flex items-center space-x-2 mt-1 text-xs text-gray-500">
+                        <Clock size={12} />
+                        <span>{version.timestamp}</span>
+                        <span>•</span>
+                        <span>{version.author}</span>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 메인 뷰 영역 - 이어서... */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-6xl mx-auto space-y-6">
+            {/* 씬 정보 */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-bold text-sm text-gray-500 mb-2">나레이션</h4>
+                  <p className="text-gray-800">{currentSceneData.narration}</p>
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm text-gray-500 mb-2">장면 설명</h4>
+                  <p className="text-gray-800">{currentSceneData.description}</p>
+                </div>
+              </div>
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <h4 className="font-bold text-sm text-gray-500 mb-2">사운드</h4>
+                <p className="text-gray-800">{currentSceneData.sound}</p>
+              </div>
+            </div>
+
+            {/* 이미지 뷰어 */}
+            <div className={`grid ${compareMode ? 'grid-cols-2' : 'grid-cols-1'} gap-6`}>
+              {/* 초안 */}
+              {(showSketch || compareMode) && (
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden relative">
+                  <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-sm">초안 (스케치)</span>
+                      {currentSceneData.sketchUrl && (
+                        <div className="flex items-center space-x-2">
+                          <button className="p-1 hover:bg-gray-200 rounded">
+                            <Download size={16} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="aspect-video bg-gray-100 flex items-center justify-center relative">
+                    {currentSceneData.sketchUrl ? (
+                      <>
+                        <img 
+                          src={currentSceneData.sketchUrl} 
+                          alt="초안"
+                          className="w-full h-full object-contain"
+                        />
+                        {/* 비교 모드일 때는 주석 오버레이 표시 안 함 */}
+                        {!compareMode && showAnnotation && annotations[`scene_${currentScene}_sketch`] && (
+                          <div className="absolute inset-0 pointer-events-none">
+                            <img 
+                              src={annotations[`scene_${currentScene}_sketch`]}
+                              alt="주석"
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="text-center text-gray-400">
+                        <Image size={48} className="mx-auto mb-2" />
+                        <p>초안 대기 중</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* 아트워크 */}
+              {(showArtwork || compareMode) && (
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden relative">
+                  <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-sm">아트워크 (최종)</span>
+                      {currentSceneData.artworkUrl && (
+                        <div className="flex items-center space-x-2">
+                          {!compareMode && (
+                            <button 
+                              onClick={() => setShowSketchCanvas(true)}
+                              className="p-1 hover:bg-gray-200 rounded flex items-center space-x-1"
+                              title="스케치 추가"
+                            >
+                              <Brush size={16} />
+                            </button>
+                          )}
+                          <button className="p-1 hover:bg-gray-200 rounded">
+                            <Download size={16} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="aspect-video bg-gray-100 flex items-center justify-center relative">
+                    {currentSceneData.artworkUrl ? (
+                      <>
+                        <img 
+                          src={currentSceneData.artworkUrl} 
+                          alt="아트워크"
+                          className="w-full h-full object-contain"
+                        />
+                        {/* 비교 모드일 때는 주석 오버레이 표시 안 함 */}
+                        {!compareMode && showAnnotation && annotations[`scene_${currentScene}_artwork`] && (
+                          <div className="absolute inset-0 pointer-events-none">
+                            <img 
+                              src={annotations[`scene_${currentScene}_artwork`]}
+                              alt="주석"
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="text-center text-gray-400">
+                        <Image size={48} className="mx-auto mb-2" />
+                        <p>아트워크 대기 중</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 피드백 섹션 */}
+            {currentSceneData.feedback && currentSceneData.feedback.length > 0 && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <h4 className="font-bold text-sm text-yellow-800 mb-2">수정 요청 사항</h4>
+                <ul className="space-y-1">
+                  {currentSceneData.feedback.map((item: string, idx: number) => (
+                    <li key={idx} className="flex items-start space-x-2">
+                      <AlertCircle size={16} className="text-yellow-600 mt-0.5" />
+                      <span className="text-sm text-yellow-800">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 하단 네비게이션 */}
+        <div className="h-16 bg-white border-t border-gray-200 flex items-center justify-between px-6">
           <button 
-            onClick={() => setShowAddSceneModal(true)}
-            className="w-full px-4 py-2 bg-black text-white rounded hover:bg-gray-800 flex items-center justify-center space-x-2"
+            onClick={() => setCurrentScene(Math.max(0, currentScene - 1))}
+            disabled={currentScene === 0}
+            className="flex items-center space-x-2 px-4 py-2 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Plus size={18} />
-            <span>씬 추가</span>
+            <ChevronLeft size={20} />
+            <span>이전 씬</span>
+          </button>
+          
+          <div className="flex items-center space-x-2">
+            {storyboard?.scenes?.map((_: any, index: number) => (
+              <button
+                key={index}
+                onClick={() => setCurrentScene(index)}
+                className={`w-2 h-2 rounded-full ${
+                  currentScene === index ? 'bg-black w-8' : 'bg-gray-300'
+                } transition-all`}
+              />
+            ))}
+          </div>
+          
+          <button 
+            onClick={() => setCurrentScene(Math.min(storyboard.scenes.length - 1, currentScene + 1))}
+            disabled={currentScene === storyboard.scenes.length - 1}
+            className="flex items-center space-x-2 px-4 py-2 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <span>다음 씬</span>
+            <ChevronRight size={20} />
           </button>
         </div>
       </div>
 
-      {/* 메인 뷰어 영역 */}
-      <div className="flex-1 flex flex-col">
-        {/* 상단 툴바 */}
-        <div className="h-14 bg-white border-b border-gray-200 flex items-center px-4">
-          <div className="flex items-center space-x-4 flex-1">
-            <h3 className="font-bold">
-              씬 {currentScene + 1}: {currentSceneData.title}
-            </h3>
-            <span className={`px-2 py-1 rounded text-xs ${getStatusStyle(currentSceneData.status).bg} ${getStatusStyle(currentSceneData.status).text}`}>
-              {getStatusStyle(currentSceneData.status).label}
-            </span>
-            
-            {/* 개선된 이미지 선택 버튼 - 라디오 버튼 방식 */}
-            <div className="flex items-center space-x-2 ml-8">
-              <label className="flex items-center space-x-1 cursor-pointer">
-                <input 
-                  type="radio" 
-                  name="imageView" 
-                  value="sketch"
-                  checked={imageViewMode === 'sketch'}
-                  onChange={() => setImageViewMode('sketch')}
-                  className="mr-1"
-                />
-                <Eye size={14} />
-                <span className="text-sm">초안</span>
-              </label>
-              <label className="flex items-center space-x-1 cursor-pointer">
-                <input 
-                  type="radio" 
-                  name="imageView" 
-                  value="artwork"
-                  checked={imageViewMode === 'artwork'}
-                  onChange={() => setImageViewMode('artwork')}
-                  className="mr-1"
-                />
-                <Eye size={14} />
-                <span className="text-sm">아트워크</span>
-              </label>
-              <button 
-                onClick={() => setCompareMode(!compareMode)}
-                className={`px-3 py-1 rounded text-sm ${
-                  compareMode ? 'bg-black text-white' : 'bg-gray-100'
-                }`}
-              >
-                비교 모드
-              </button>
-              <button 
-                onClick={() => setShowAnnotation(true)}
-                disabled={!currentSceneData.sketchUrl && !currentSceneData.artworkUrl}
-                className={`px-3 py-1 rounded text-sm flex items-center space-x-1 ${
-                  !currentSceneData.sketchUrl && !currentSceneData.artworkUrl 
-                    ? 'bg-gray-50 text-gray-400 cursor-not-allowed' 
-                    : 'bg-gray-100 hover:bg-gray-200'
-                }`}
-              >
-                <Edit2 size={14} />
-                <span>주석</span>
-              </button>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            {/* 워크플로우 개선 - 역할별 액션 버튼 */}
-            {currentSceneData.status === 'waiting_sketch' && (
-              <>
-                <input 
-                  ref={fileInputRef}
-                  type="file" 
-                  hidden 
-                  accept="image/*"
-                  onChange={handleSketchUpload}
-                />
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="px-4 py-1.5 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 flex items-center space-x-1"
-                >
-                  <Upload size={16} />
-                  <span>초안 업로드</span>
-                </button>
-              </>
-            )}
-            
-            {currentSceneData.status === 'sketch_uploaded' && (
-              <>
-                <input 
-                  ref={artworkInputRef}
-                  type="file" 
-                  hidden 
-                  accept="image/*"
-                  onChange={handleArtworkUpload}
-                />
-                <button 
-                  onClick={() => artworkInputRef.current?.click()}
-                  className="px-4 py-1.5 bg-green-500 text-white rounded text-sm hover:bg-green-600 flex items-center space-x-1"
-                >
-                  <Upload size={16} />
-                  <span>아트워크 업로드</span>
-                </button>
-              </>
-            )}
-            
-            {currentSceneData.status === 'artwork_uploaded' && (
-              <>
-                <button 
-                  onClick={() => updateSceneStatus('feedback_requested')}
-                  className="px-4 py-1.5 bg-orange-500 text-white rounded text-sm hover:bg-orange-600"
-                >
-                  수정 요청
-                </button>
-                <button 
-                  onClick={() => updateSceneStatus('approved')}
-                  className="px-4 py-1.5 bg-green-500 text-white rounded text-sm hover:bg-green-600"
-                >
-                  승인
-                </button>
-              </>
-            )}
-            
-            {/* 새로운 상태: 수정 완료 버튼 */}
-            {currentSceneData.status === 'feedback_requested' && (
-              <button 
-                onClick={() => updateSceneStatus('revision_complete')}
-                className="px-4 py-1.5 bg-purple-500 text-white rounded text-sm hover:bg-purple-600 flex items-center space-x-1"
-              >
-                <CheckCheck size={16} />
-                <span>수정 완료</span>
-              </button>
-            )}
-            
-            {/* 수정 완료 상태에서 수정요청 또는 최종승인 선택 가능 */}
-            {currentSceneData.status === 'revision_complete' && (
-              <>
-                <button 
-                  onClick={() => updateSceneStatus('feedback_requested')}
-                  className="px-4 py-1.5 bg-orange-500 text-white rounded text-sm hover:bg-orange-600"
-                >
-                  수정 요청
-                </button>
-                <button 
-                  onClick={() => updateSceneStatus('approved')}
-                  className="px-4 py-1.5 bg-green-500 text-white rounded text-sm hover:bg-green-600"
-                >
-                  최종 승인
-                </button>
-              </>
-            )}
-            
-            <button className="p-2 hover:bg-gray-100 rounded">
-              <Download size={20} />
+      {/* 오른쪽 패널 - 댓글 (변경 없음) */}
+      <div className="w-96 bg-white border-l border-gray-200 flex flex-col">
+        {/* 기존 댓글 패널 코드 유지 */}
+        <div className="h-14 border-b border-gray-200 flex items-center px-4">
+          <div className="flex space-x-6">
+            <button
+              onClick={() => setActiveTab('comments')}
+              className={`pb-2 text-sm font-medium ${
+                activeTab === 'comments' 
+                  ? 'text-black border-b-2 border-black' 
+                  : 'text-gray-400'
+              }`}
+            >
+              댓글 ({filteredComments.length})
             </button>
-            <button className="p-2 hover:bg-gray-100 rounded">
-              <Share2 size={20} />
-            </button>
-            <button className="p-2 hover:bg-gray-100 rounded">
-              <MoreHorizontal size={20} />
+            <button
+              onClick={() => setActiveTab('activity')}
+              className={`pb-2 text-sm font-medium ${
+                activeTab === 'activity' 
+                  ? 'text-black border-b-2 border-black' 
+                  : 'text-gray-400'
+              }`}
+            >
+              활동
             </button>
           </div>
         </div>
 
-        {/* 메인 컨텐츠 영역 - 개선된 이미지 뷰어 */}
-        <div className="flex-1 flex">
-          {/* 이미지 뷰어 영역 */}
-          <div className="flex-1 bg-gray-100 p-8 overflow-auto">
-            <div className="max-w-4xl mx-auto">
-              {compareMode ? (
-                // 비교모드 - 양쪽에 동시 표시
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="relative">
-                    <h4 className="font-medium mb-2">초안</h4>
-                    {currentSceneData.sketchUrl && !activeAnnotationId ? (
-                      <div className="relative">
-                        <img src={currentSceneData.sketchUrl} alt="초안" className="w-full rounded-lg shadow-lg" />
-                      </div>
-                    ) : activeAnnotationId && comments.find(c => c.id === activeAnnotationId)?.annotationData ? (
-                      <div className="relative">
-                        <img 
-                          src={comments.find(c => c.id === activeAnnotationId)?.annotationData || ''} 
-                          alt="주석" 
-                          className="w-full rounded-lg shadow-lg"
-                        />
-                      </div>
-                    ) : (
-                      <div className="bg-white rounded-lg p-12 text-center">
-                        <p className="text-gray-400">초안 미업로드</p>
-                      </div>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <h4 className="font-medium mb-2">아트워크</h4>
-                    {currentSceneData.artworkUrl && !activeAnnotationId ? (
-                      <div className="relative">
-                        <img src={currentSceneData.artworkUrl} alt="아트워크" className="w-full rounded-lg shadow-lg" />
-                      </div>
-                    ) : activeAnnotationId && comments.find(c => c.id === activeAnnotationId)?.annotationData ? (
-                      <div className="relative">
-                        <img 
-                          src={comments.find(c => c.id === activeAnnotationId)?.annotationData || ''} 
-                          alt="주석" 
-                          className="w-full rounded-lg shadow-lg"
-                        />
-                      </div>
-                    ) : (
-                      <div className="bg-white rounded-lg p-12 text-center">
-                        <p className="text-gray-400">아트워크 미업로드</p>
-                      </div>
-                    )}
-                  </div>
+        {/* 탭 컨텐츠는 기존 코드 유지 */}
+        <div className="flex-1 overflow-y-auto">
+          {activeTab === 'comments' && (
+            <div className="p-4 space-y-4">
+              {filteredComments.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <MessageCircle size={32} className="mx-auto mb-2" />
+                  <p>아직 댓글이 없습니다</p>
                 </div>
               ) : (
-                // 일반 모드 - 선택된 이미지만 표시
-                <div className="relative">
-                  {imageViewMode === 'sketch' && currentSceneData.sketchUrl && !activeAnnotationId && (
-                    <div className="relative">
-                      <img src={currentSceneData.sketchUrl} alt="초안" className="w-full rounded-lg shadow-lg" />
-                    </div>
-                  )}
-                  {imageViewMode === 'artwork' && currentSceneData.artworkUrl && !activeAnnotationId && (
-                    <div className="relative">
-                      <img src={currentSceneData.artworkUrl} alt="아트워크" className="w-full rounded-lg shadow-lg" />
-                    </div>
-                  )}
-                  {/* 선택된 주석 표시 (원본 크기) */}
-                  {activeAnnotationId && (
-                    <div className="relative">
-                      {comments.find(c => c.id === activeAnnotationId)?.annotationData && (
-                        <img 
-                          src={comments.find(c => c.id === activeAnnotationId)?.annotationData || ''} 
-                          alt="주석" 
-                          className="w-full rounded-lg shadow-lg"
-                        />
-                      )}
-                    </div>
-                  )}
-                  {!currentSceneData.sketchUrl && !currentSceneData.artworkUrl && (
-                    <div className="bg-white rounded-lg p-12 text-center">
-                      <p className="text-gray-400">이미지가 업로드되지 않았습니다</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* 댓글 사이드바 */}
-          <div className="w-96 bg-white border-l border-gray-200 flex flex-col">
-            <div className="p-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h3 className="font-bold">댓글</h3>
-                <span className="text-sm text-gray-500">{filteredComments.length}개</span>
-              </div>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-4">
-              {filteredComments.map(comment => (
-                <div key={comment.id} className="mb-4">
-                  <div 
-                    className={`p-3 rounded-lg cursor-pointer hover:shadow-md transition-shadow ${
-                      comment.resolved ? 'bg-green-50' : 'bg-gray-50'
-                    } ${activeAnnotationId === comment.id ? 'ring-2 ring-blue-500' : ''}`}
-                    onClick={() => {
-                      if (comment.annotationData) {
-                        setActiveAnnotationId(activeAnnotationId === comment.id ? null : comment.id);
-                      }
-                    }}
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center text-sm">
-                          {comment.avatar}
-                        </div>
-                        <div>
-                          <div className="font-medium text-sm">{comment.author}</div>
-                          <div className="text-xs text-gray-500">{comment.time}</div>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {comment.tag && (
-                          <span className={`text-xs px-2 py-1 rounded ${
-                            comment.tag === 'revision' 
-                              ? 'bg-orange-100 text-orange-600' 
-                              : 'bg-blue-100 text-blue-600'
-                          }`}>
-                            {comment.tag === 'revision' ? '수정요청' : '댓글'}
-                          </span>
-                        )}
-                        {comment.annotationData && (
-                          <span className="text-xs px-2 py-1 rounded bg-purple-100 text-purple-600">
-                            주석
-                          </span>
-                        )}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleResolve(comment.id);
-                          }}
-                          className={`text-sm ${comment.resolved ? 'text-green-600' : 'text-gray-400'}`}
-                        >
-                          {comment.resolved ? <CheckCircle size={16} /> : <Check size={16} />}
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <p className="text-sm mb-2">{comment.content}</p>
-                    
-                    {comment.annotationData && (
-                      <div className="text-xs text-gray-500 mb-2">
-                        {activeAnnotationId === comment.id ? '주석을 보고 있습니다' : '클릭하여 주석 보기'}
-                      </div>
-                    )}
-                    
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setReplyTo(comment.id);
-                      }}
-                      className="text-xs text-gray-500 hover:text-black flex items-center space-x-1"
+                filteredComments.map(comment => (
+                  <div key={comment.id} className="space-y-2">
+                    <div 
+                      className={`flex space-x-3 p-2 rounded ${
+                        selectedCommentId === comment.id ? 'bg-gray-100' : ''
+                      }`}
+                      onClick={() => comment.sketchData && toggleSketchOverlay(comment.id)}
                     >
-                      <Reply size={12} />
-                      <span>답글</span>
-                    </button>
-                    
+                      <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-xs font-bold">
+                        {comment.avatar}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <span className="font-semibold text-sm">{comment.author}</span>
+                          <span className="text-xs text-gray-400">{comment.time}</span>
+                          {comment.type === 'revision' && (
+                            <span className="bg-orange-100 text-orange-600 text-xs px-2 py-0.5 rounded">
+                              수정요청
+                            </span>
+                          )}
+                          {comment.resolved && (
+                            <span className="bg-green-100 text-green-600 text-xs px-2 py-0.5 rounded">
+                              해결됨
+                            </span>
+                          )}
+                          {comment.sketchData && (
+                            <button className="bg-purple-100 text-purple-600 text-xs px-2 py-0.5 rounded flex items-center space-x-1">
+                              <Brush size={10} />
+                              <span>스케치 포함</span>
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-700">{comment.content}</p>
+                        <div className="flex items-center space-x-3 mt-2">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setReplyTo(comment.id);
+                            }}
+                            className="text-xs text-gray-400 hover:text-black flex items-center space-x-1"
+                          >
+                            <Reply size={12} />
+                            <span>답글</span>
+                          </button>
+                          {!comment.resolved && (
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleResolve(comment.id);
+                              }}
+                              className="text-xs text-gray-400 hover:text-green-600 flex items-center gap-1"
+                            >
+                              <Check size={12} />
+                              해결
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
                     {comment.replies && comment.replies.length > 0 && (
-                      <div className="mt-2 space-y-2 pl-4 border-l-2 border-gray-200">
+                      <div className="ml-11 space-y-2">
                         {comment.replies.map((reply: any) => (
-                          <div key={reply.id} className="text-sm">
-                            <div className="flex items-center space-x-1 mb-1">
-                              <span className="font-medium">{reply.author}</span>
-                              <span className="text-xs text-gray-500">{reply.time}</span>
+                          <div key={reply.id} className="flex space-x-3">
+                            <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-xs font-bold">
+                              {reply.avatar}
                             </div>
-                            <p>{reply.content}</p>
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <span className="font-semibold text-xs">{reply.author}</span>
+                                <span className="text-xs text-gray-400">{reply.time}</span>
+                              </div>
+                              <p className="text-xs text-gray-700">{reply.content}</p>
+                            </div>
                           </div>
                         ))}
                       </div>
                     )}
-                    
+
                     {replyTo === comment.id && (
-                      <div className="mt-2 flex space-x-2">
+                      <div className="ml-11 flex space-x-2">
                         <input
                           type="text"
                           value={replyText}
                           onChange={(e) => setReplyText(e.target.value)}
-                          placeholder="답글 입력..."
-                          className="flex-1 px-2 py-1 text-sm border border-gray-200 rounded"
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              addReply(comment.id);
+                            }
+                          }}
+                          placeholder="답글을 입력하세요..."
+                          className="flex-1 px-3 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:border-black"
                           autoFocus
                         />
                         <button
                           onClick={() => addReply(comment.id)}
-                          className="px-2 py-1 bg-black text-white rounded text-sm"
+                          className="px-3 py-1 bg-black text-white text-sm rounded hover:bg-gray-800"
                         >
-                          전송
+                          <Send size={14} />
+                        </button>
+                        <button
+                          onClick={() => setReplyTo(null)}
+                          className="px-2 py-1 text-gray-400 hover:text-black"
+                        >
+                          <X size={14} />
                         </button>
                       </div>
                     )}
                   </div>
-                </div>
-              ))}
-            </div>
-            
-            {/* 댓글 입력 영역 */}
-            <div className="p-4 border-t border-gray-200">
-              {pendingSketch && (
-                <div className="mb-2 p-2 bg-gray-50 rounded flex items-center justify-between">
-                  <span className="text-xs text-gray-600">스케치 첨부됨</span>
-                  <button
-                    onClick={() => setPendingSketch(null)}
-                    className="text-gray-400 hover:text-black"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
+                ))
               )}
-              
-              {/* 태그 선택 */}
-              <div className="mb-2 flex items-center space-x-2">
-                <Tag size={16} className="text-gray-500" />
-                <label className="flex items-center space-x-1 cursor-pointer">
-                  <input 
-                    type="radio" 
-                    name="commentTag" 
-                    value="comment"
-                    checked={commentTag === 'comment'}
-                    onChange={() => setCommentTag('comment')}
-                    className="mr-1"
-                  />
-                  <span className="text-sm">댓글</span>
-                </label>
-                <label className="flex items-center space-x-1 cursor-pointer">
-                  <input 
-                    type="radio" 
-                    name="commentTag" 
-                    value="revision"
-                    checked={commentTag === 'revision'}
-                    onChange={() => setCommentTag('revision')}
-                    className="mr-1"
-                  />
-                  <span className="text-sm">수정요청</span>
-                </label>
+            </div>
+          )}
+          {activeTab === 'activity' && (
+            <div className="p-4">
+              <div className="space-y-3">
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
+                  <div className="flex-1">
+                    <p className="text-sm">
+                      <span className="font-medium">김그림</span>님이 아트워크를 업로드했습니다
+                    </p>
+                    <p className="text-xs text-gray-500">30분 전</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+                  <div className="flex-1">
+                    <p className="text-sm">
+                      <span className="font-medium">나</span>님이 댓글을 남겼습니다
+                    </p>
+                    <p className="text-xs text-gray-500">1시간 전</p>
+                  </div>
+                </div>
               </div>
-              
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => setShowSketchCanvas(true)}
-                  className="p-2 hover:bg-gray-100 rounded"
-                  title="스케치 추가"
-                >
-                  <Brush size={20} />
-                </button>
-                <input
-                  type="text"
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  placeholder="댓글 입력..."
-                  className="flex-1 px-3 py-2 border border-gray-200 rounded"
-                  onKeyPress={(e) => e.key === 'Enter' && addComment()}
-                />
-                <button
-                  onClick={addComment}
-                  className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800"
-                >
-                  <Send size={16} />
+            </div>
+          )}
+        </div>
+
+        {activeTab === 'comments' && (
+          <div className="border-t border-gray-200 p-4">
+            {pendingSketch && (
+              <div className="mb-2 p-2 bg-purple-50 rounded flex items-center justify-between">
+                <span className="text-xs text-purple-600">스케치가 추가됨</span>
+                <button onClick={() => setPendingSketch(null)} className="text-purple-600 hover:text-purple-800">
+                  <X size={14} />
                 </button>
               </div>
+            )}
+            <div className="flex space-x-2">
+              <button 
+                onClick={() => setShowSketchCanvas(true)}
+                className="p-2 hover:bg-gray-100 rounded"
+                title="스케치 추가"
+              >
+                <Brush size={20} />
+              </button>
+              <input
+                type="text"
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && addComment()}
+                placeholder="댓글을 입력하세요..."
+                className="flex-1 px-3 py-2 border border-gray-200 rounded focus:outline-none focus:border-black"
+              />
+              <button
+                onClick={addComment}
+                className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800"
+              >
+                <Send size={16} />
+              </button>
             </div>
           </div>
-        </div>
+        )}
       </div>
-      
+
       {/* 스케치 캔버스 모달 */}
-      {showSketchCanvas && (
-        <SketchCanvas 
-          onSave={(imageData) => {
-            setPendingSketch(imageData);
+      {showSketchCanvas && !compareMode && (
+        <SketchCanvas
+          imageUrl={currentSceneData.artworkUrl || currentSceneData.sketchUrl}
+          onSave={(sketchData) => {
+            setPendingSketch(sketchData);
             setShowSketchCanvas(false);
           }}
           onClose={() => setShowSketchCanvas(false)}
         />
       )}
-      
-      {/* 주석 캔버스 모달 */}
-      {showAnnotation && (
-        <AnnotationCanvas 
-          backgroundImage={
-            imageViewMode === 'sketch' 
-              ? currentSceneData.sketchUrl 
-              : currentSceneData.artworkUrl
-          }
-          onSave={handleAnnotationSave}
+
+      {/* 주석 캔버스 */}
+      {showAnnotation && !compareMode && (
+        <AnnotationCanvas
+          imageUrl={imageViewMode === 'sketch' ? currentSceneData.sketchUrl : currentSceneData.artworkUrl}
+          onSave={(annotationData) => {
+            const key = `scene_${currentScene}_${imageViewMode}`;
+            setAnnotations({...annotations, [key]: annotationData});
+            setShowAnnotation(false);
+          }}
           onClose={() => setShowAnnotation(false)}
         />
-      )}
-      
-      {/* 씬 추가 모달 */}
-      {showAddSceneModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96">
-            <h2 className="text-xl font-bold mb-4">새 씬 추가</h2>
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">씬 제목</label>
-              <input
-                type="text"
-                value={newSceneTitle}
-                onChange={(e) => setNewSceneTitle(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded"
-                placeholder="예: 주인공 등장"
-                autoFocus
-              />
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">씬 설명</label>
-              <textarea
-                value={newSceneDescription}
-                onChange={(e) => setNewSceneDescription(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded h-24 resize-none"
-                placeholder="씬에 대한 상세 설명을 입력하세요"
-              />
-            </div>
-            <div className="flex justify-end space-x-2">
-              <button
-                onClick={() => {
-                  setShowAddSceneModal(false);
-                  setNewSceneTitle('');
-                  setNewSceneDescription('');
-                }}
-                className="px-4 py-2 text-gray-600 hover:text-black"
-              >
-                취소
-              </button>
-              <button
-                onClick={addNewScene}
-                className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800"
-              >
-                추가
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );

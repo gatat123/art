@@ -35,6 +35,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      // Check if it's an admin token
+      if (token.startsWith('admin-token-')) {
+        setUser({
+          id: 'admin-user',
+          username: 'HSG202',
+          email: 'admin@studio.com',
+          isAdmin: true
+        } as any);
+        setLoading(false);
+        return;
+      }
+      
       // Check if it's a demo token
       if (token.startsWith('demo-token-')) {
         setUser({
@@ -59,6 +71,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = async (username: string, password: string) => {
+    // Admin account handling
+    if (username === 'HSG202' && password === '1004mobil!#') {
+      const adminUser = {
+        id: 'admin-user',
+        username: 'HSG202',
+        email: 'admin@studio.com',
+        isAdmin: true
+      };
+      
+      const token = 'admin-token-' + Date.now();
+      localStorage.setItem('auth-token', token);
+      localStorage.setItem('user-role', 'admin');
+      document.cookie = `auth-token=${token}; path=/`;
+      setUser(adminUser as any);
+      
+      router.push('/studio');
+      return;
+    }
+    
     // Demo account handling
     if (username === 'demo' && password === 'demo123') {
       const demoUser = {

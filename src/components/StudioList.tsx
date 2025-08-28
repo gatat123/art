@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Plus, Users, FolderOpen, LogOut, Settings, ChevronRight } from 'lucide-react';
 
 interface Studio {
-  id: string;
+  id: number;
   name: string;
   description?: string;
   inviteCode: string;
@@ -41,7 +41,7 @@ const StudioList: React.FC<StudioListProps> = ({
     if (!studioName) return;
     
     const newStudio: Studio = {
-      id: Date.now().toString(),
+      id: Date.now(),
       name: studioName,
       description: studioDescription,
       inviteCode: Math.random().toString(36).substring(2, 10).toUpperCase(),
@@ -62,7 +62,7 @@ const StudioList: React.FC<StudioListProps> = ({
     
     // 실제로는 API 호출로 스튜디오 정보를 가져와야 함
     const joinedStudio: Studio = {
-      id: Date.now().toString(),
+      id: Date.now(),
       name: '참여한 스튜디오',
       description: '초대 코드로 참여한 스튜디오',
       inviteCode: inviteCode,

@@ -50,7 +50,7 @@ const MainApp: React.FC = () => {
     // 임시 데이터 - 실제로는 API 호출
     setStudios([
       {
-        id: '1',
+        id: 1,
         name: '드림 스튜디오',
         description: '웹툰 제작 전문 스튜디오',
         inviteCode: 'DREAM2024',

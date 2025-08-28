@@ -51,11 +51,11 @@ const ProjectListView: React.FC<ProjectListViewProps> = ({
 }) => {
   const channelProjects = currentChannel?.id 
     ? projects.filter(p => p.channelId === currentChannel.id)
-    : projects.filter(p => p.channelId === 'default' || !p.channelId);
+    : projects.filter(p => p.channelId === 0 || !p.channelId);
   
   // 기본값 설정
   const displayChannel = currentChannel || {
-    id: 'default',
+    id: 0,
     name: '프로젝트',
     projectCount: 0
   };
@@ -74,7 +74,7 @@ const ProjectListView: React.FC<ProjectListViewProps> = ({
   };
 
   const createProject = (projectData: any) => {
-    const channelId = currentChannel?.id || 'default';
+    const channelId = currentChannel?.id || 0;
     
     const newProject = {
       ...projectData,

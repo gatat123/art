@@ -6,13 +6,15 @@ import {
 } from 'lucide-react';
 import SketchCanvas from './SketchCanvas';
 
+type ViewType = 'login' | 'studios' | 'project' | 'scene';
+
 interface SceneViewProps {
   storyboard: any;
   setStoryboard: (storyboard: any) => void;
   currentScene: number;
   setCurrentScene: (scene: number) => void;
   currentView: string;
-  setCurrentView: (view: string) => void;
+  setCurrentView: (view: ViewType) => void;
   comments: any[];
   setComments: (comments: any[]) => void;
   notifications: number;

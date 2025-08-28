@@ -119,13 +119,20 @@ const MainApp: React.FC = () => {
     case 'project':
       return (
         <ProjectListView
-          studio={selectedStudio}
+          currentChannel={selectedStudio}
           projects={projects}
           setProjects={setProjects}
-          setStoryboard={setStoryboard}
+          channels={studios}
+          setChannels={setStudios}
           setCurrentView={setCurrentView}
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
+          setCurrentProject={(project: any) => {
+            // Handle project selection
+            setStoryboard(project);
+          }}
+          setStoryboard={setStoryboard}
+          notifications={notifications}
+          showCreateProject={false}
+          setShowCreateProject={() => {}}
         />
       );
 

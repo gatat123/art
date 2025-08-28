@@ -12,11 +12,13 @@ interface Studio {
   createdAt: string;
 }
 
+type ViewType = 'login' | 'studios' | 'project' | 'scene';
+
 interface StudioListProps {
   studios: Studio[];
   setStudios: (studios: Studio[]) => void;
   setSelectedStudio: (studio: Studio) => void;
-  setCurrentView: (view: string) => void;
+  setCurrentView: (view: ViewType) => void;
   user: any;
   onLogout: () => void;
 }

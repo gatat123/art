@@ -4,6 +4,8 @@ import {
 } from 'lucide-react';
 import CreateProjectModal from './CreateProjectModal';
 
+type ViewType = 'login' | 'studios' | 'project' | 'scene';
+
 interface Project {
   id: number;
   channelId: number;
@@ -27,7 +29,7 @@ interface ProjectListViewProps {
   setProjects: (projects: Project[]) => void;
   channels: any[];
   setChannels: (channels: any[]) => void;
-  setCurrentView: (view: string) => void;
+  setCurrentView: (view: ViewType) => void;
   setCurrentProject: (project: Project) => void;
   setStoryboard: (storyboard: any) => void;
   notifications: number;
@@ -104,7 +106,7 @@ const ProjectListView: React.FC<ProjectListViewProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => setCurrentView('channel-list')}
+                onClick={() => setCurrentView('studios')}
                 className="flex items-center space-x-2 text-gray-600 hover:text-black"
               >
                 <ArrowLeft size={20} />

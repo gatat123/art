@@ -1,2 +1,0 @@
-Cache bust: 2024-12-20 v2.1.0-fix
-This file forces Railway to rebuild without cache

@@ -49,6 +49,7 @@ const ProjectListView: React.FC<ProjectListViewProps> = ({
   showCreateProject,
   setShowCreateProject
 }) => {
+  // channelId는 number 타입 (0이 기본값)
   const channelProjects = currentChannel?.id 
     ? projects.filter(p => p.channelId === currentChannel.id)
     : projects.filter(p => p.channelId === 0 || !p.channelId);

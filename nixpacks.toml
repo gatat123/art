@@ -2,10 +2,10 @@
 nixPkgs = ["nodejs-18_x"]
 
 [phases.install]
-cmds = ["npm install --force"]
+cmds = ["cd storyboard-collab && npm install --force"]
 
 [phases.build]
-cmds = ["npm run build"]
+cmds = ["cd storyboard-collab && npm run build"]
 
 [start]
-cmd = "npm run start"
+cmd = "cd storyboard-collab && npm run start"

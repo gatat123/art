@@ -52,7 +52,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onRegister }) => {
         {/* Logo and Title */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Storyboard Studio
+            Studio
           </h1>
           <p className="text-gray-600">
             웹툰 제작을 위한 협업 플랫폼
@@ -178,7 +178,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onRegister }) => {
 
         {/* Footer */}
         <div className="text-center mt-8 text-sm text-gray-500">
-          © 2024 Storyboard Studio. All rights reserved.
+          © 2024 Studio. All rights reserved.
         </div>
       </div>
     </div>

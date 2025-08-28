@@ -65,7 +65,7 @@ const MainApp: React.FC = () => {
     try {
       await login(username, password);
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || '로그인에 실패했습니다');
+      throw new Error('로그인에 실패했습니다');
     }
   };
 
@@ -73,7 +73,7 @@ const MainApp: React.FC = () => {
     try {
       await signup(username, email, password);
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || '회원가입에 실패했습니다');
+      throw new Error('회원가입에 실패했습니다');
     }
   };
 

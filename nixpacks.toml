@@ -1,17 +1,11 @@
-# nixpacks.toml
 [phases.setup]
 nixPkgs = ["nodejs-18_x"]
 
 [phases.install]
-cmds = ["npm install --no-cache --force"]
+cmds = ["npm install --force"]
 
 [phases.build]
 cmds = ["npm run build"]
 
 [start]
 cmd = "npm run start"
-
-[variables]
-NODE_ENV = "production"
-NEXT_TELEMETRY_DISABLED = "1"
-NPM_CONFIG_CACHE = "/tmp/.npm"

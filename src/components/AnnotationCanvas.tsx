@@ -1,9 +1,9 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { X, Pen, Eraser, Download, Undo, Redo, Square, Circle, Type, Palette } from 'lucide-react';
+import { X, Pen, Eraser, Download, Undo, Redo, Square, Circle, Type, Palette, MessageCircle } from 'lucide-react';
 
 interface AnnotationCanvasProps {
   backgroundImage?: string | null;
-  onSave: (imageData: string) => void;
+  onSave: (imageData: string, comment: string) => void;
   onClose: () => void;
 }
 
@@ -19,6 +19,7 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({ backgroundImage, on
   const [textInput, setTextInput] = useState('');
   const [textPosition, setTextPosition] = useState<{ x: number; y: number } | null>(null);
   const [startPos, setStartPos] = useState<{ x: number; y: number } | null>(null);
+  const [annotationComment, setAnnotationComment] = useState('');
 
   const colors = [
     '#FF0000', '#00FF00', '#0000FF', '#FFFF00', 
@@ -250,7 +251,7 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({ backgroundImage, on
     
     // 이미지 데이터 URL로 변환
     const imageData = annotationCanvas.toDataURL('image/png');
-    onSave(imageData);
+    onSave(imageData, annotationComment);
   };
 
   const downloadImage = () => {
@@ -265,7 +266,7 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({ backgroundImage, on
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg flex flex-col" style={{ width: '900px', height: '750px' }}>
+      <div className="bg-white rounded-lg flex flex-col" style={{ width: '900px', height: '800px' }}>
         {/* 헤더 */}
         <div className="p-4 border-b border-gray-200 flex items-center justify-between">
           <h2 className="text-xl font-bold">주석 그리기</h2>
@@ -434,6 +435,20 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({ backgroundImage, on
                 />
               </div>
             )}
+          </div>
+        </div>
+        
+        {/* 코멘트 입력 영역 */}
+        <div className="p-4 border-t border-gray-200">
+          <div className="flex items-center space-x-2">
+            <MessageCircle size={20} className="text-gray-600" />
+            <input
+              type="text"
+              value={annotationComment}
+              onChange={(e) => setAnnotationComment(e.target.value)}
+              placeholder="주석에 대한 설명을 입력하세요..."
+              className="flex-1 px-3 py-2 border border-gray-200 rounded"
+            />
           </div>
         </div>
         

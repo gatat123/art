@@ -64,8 +64,7 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
   const [newSceneTitle, setNewSceneTitle] = useState('');
   const [newSceneDescription, setNewSceneDescription] = useState('');
   const [showAnnotation, setShowAnnotation] = useState(false);
-  const [annotations, setAnnotations] = useState<{ [key: number]: string }>({});
-  const [showAnnotationOverlay, setShowAnnotationOverlay] = useState(false);
+  const [activeAnnotationId, setActiveAnnotationId] = useState<number | null>(null);
   const [commentTag, setCommentTag] = useState<CommentTag>('comment');
 
   useEffect(() => {
@@ -181,11 +180,7 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
   };
 
   // 주석 저장 핸들러
-  const handleAnnotationSave = (annotationData: string) => {
-    setAnnotations({
-      ...annotations,
-      [currentScene]: annotationData
-    });
+  const handleAnnotationSave = (annotationData: string, annotationComment: string) => {
     setShowAnnotation(false);
     
     // 댓글에 주석 추가
@@ -195,9 +190,9 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
       author: "나",
       avatar: "나",
       time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
-      content: "(주석이 추가되었습니다)",
+      content: annotationComment || "(주석이 추가되었습니다)",
       type: "annotation",
-      tag: "comment",
+      tag: "revision",
       resolved: false,
       annotationData: annotationData,
       parentId: null,
@@ -390,19 +385,15 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
               </button>
               <button 
                 onClick={() => setShowAnnotation(true)}
-                className="px-3 py-1 rounded text-sm bg-gray-100 hover:bg-gray-200 flex items-center space-x-1"
+                disabled={!currentSceneData.sketchUrl && !currentSceneData.artworkUrl}
+                className={`px-3 py-1 rounded text-sm flex items-center space-x-1 ${
+                  !currentSceneData.sketchUrl && !currentSceneData.artworkUrl 
+                    ? 'bg-gray-50 text-gray-400 cursor-not-allowed' 
+                    : 'bg-gray-100 hover:bg-gray-200'
+                }`}
               >
                 <Edit2 size={14} />
                 <span>주석</span>
-              </button>
-              <button 
-                onClick={() => setShowAnnotationOverlay(!showAnnotationOverlay)}
-                className={`px-3 py-1 rounded text-sm flex items-center space-x-1 ${
-                  showAnnotationOverlay ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200'
-                }`}
-              >
-                <Eye size={14} />
-                <span>주석 {showAnnotationOverlay ? '숨기기' : '보기'}</span>
               </button>
             </div>
           </div>
@@ -515,16 +506,17 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="relative">
                     <h4 className="font-medium mb-2">초안</h4>
-                    {currentSceneData.sketchUrl ? (
+                    {currentSceneData.sketchUrl && !activeAnnotationId ? (
                       <div className="relative">
                         <img src={currentSceneData.sketchUrl} alt="초안" className="w-full rounded-lg shadow-lg" />
-                        {annotations[currentScene] && showAnnotationOverlay && (
-                          <img 
-                            src={annotations[currentScene]} 
-                            alt="주석" 
-                            className="absolute inset-0 w-full h-full object-contain pointer-events-none opacity-60"
-                          />
-                        )}
+                      </div>
+                    ) : activeAnnotationId && comments.find(c => c.id === activeAnnotationId)?.annotationData ? (
+                      <div className="relative">
+                        <img 
+                          src={comments.find(c => c.id === activeAnnotationId)?.annotationData || ''} 
+                          alt="주석" 
+                          className="w-full rounded-lg shadow-lg"
+                        />
                       </div>
                     ) : (
                       <div className="bg-white rounded-lg p-12 text-center">
@@ -534,16 +526,17 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                   </div>
                   <div className="relative">
                     <h4 className="font-medium mb-2">아트워크</h4>
-                    {currentSceneData.artworkUrl ? (
+                    {currentSceneData.artworkUrl && !activeAnnotationId ? (
                       <div className="relative">
                         <img src={currentSceneData.artworkUrl} alt="아트워크" className="w-full rounded-lg shadow-lg" />
-                        {annotations[currentScene] && showAnnotationOverlay && (
-                          <img 
-                            src={annotations[currentScene]} 
-                            alt="주석" 
-                            className="absolute inset-0 w-full h-full object-contain pointer-events-none opacity-60"
-                          />
-                        )}
+                      </div>
+                    ) : activeAnnotationId && comments.find(c => c.id === activeAnnotationId)?.annotationData ? (
+                      <div className="relative">
+                        <img 
+                          src={comments.find(c => c.id === activeAnnotationId)?.annotationData || ''} 
+                          alt="주석" 
+                          className="w-full rounded-lg shadow-lg"
+                        />
                       </div>
                     ) : (
                       <div className="bg-white rounded-lg p-12 text-center">
@@ -555,26 +548,24 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
               ) : (
                 // 일반 모드 - 선택된 이미지만 표시
                 <div className="relative">
-                  {imageViewMode === 'sketch' && currentSceneData.sketchUrl && (
+                  {imageViewMode === 'sketch' && currentSceneData.sketchUrl && !activeAnnotationId && (
                     <div className="relative">
                       <img src={currentSceneData.sketchUrl} alt="초안" className="w-full rounded-lg shadow-lg" />
-                      {annotations[currentScene] && showAnnotationOverlay && (
-                        <img 
-                          src={annotations[currentScene]} 
-                          alt="주석" 
-                          className="absolute inset-0 w-full h-full object-contain pointer-events-none opacity-60"
-                        />
-                      )}
                     </div>
                   )}
-                  {imageViewMode === 'artwork' && currentSceneData.artworkUrl && (
+                  {imageViewMode === 'artwork' && currentSceneData.artworkUrl && !activeAnnotationId && (
                     <div className="relative">
                       <img src={currentSceneData.artworkUrl} alt="아트워크" className="w-full rounded-lg shadow-lg" />
-                      {annotations[currentScene] && showAnnotationOverlay && (
+                    </div>
+                  )}
+                  {/* 선택된 주석 표시 (원본 크기) */}
+                  {activeAnnotationId && (
+                    <div className="relative">
+                      {comments.find(c => c.id === activeAnnotationId)?.annotationData && (
                         <img 
-                          src={annotations[currentScene]} 
+                          src={comments.find(c => c.id === activeAnnotationId)?.annotationData || ''} 
                           alt="주석" 
-                          className="absolute inset-0 w-full h-full object-contain pointer-events-none opacity-60"
+                          className="w-full rounded-lg shadow-lg"
                         />
                       )}
                     </div>
@@ -601,7 +592,16 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
             <div className="flex-1 overflow-y-auto p-4">
               {filteredComments.map(comment => (
                 <div key={comment.id} className="mb-4">
-                  <div className={`p-3 rounded-lg ${comment.resolved ? 'bg-green-50' : 'bg-gray-50'}`}>
+                  <div 
+                    className={`p-3 rounded-lg cursor-pointer hover:shadow-md transition-shadow ${
+                      comment.resolved ? 'bg-green-50' : 'bg-gray-50'
+                    } ${activeAnnotationId === comment.id ? 'ring-2 ring-blue-500' : ''}`}
+                    onClick={() => {
+                      if (comment.annotationData) {
+                        setActiveAnnotationId(activeAnnotationId === comment.id ? null : comment.id);
+                      }
+                    }}
+                  >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center space-x-2">
                         <div className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center text-sm">
@@ -622,8 +622,16 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                             {comment.tag === 'revision' ? '수정요청' : '댓글'}
                           </span>
                         )}
+                        {comment.annotationData && (
+                          <span className="text-xs px-2 py-1 rounded bg-purple-100 text-purple-600">
+                            주석
+                          </span>
+                        )}
                         <button
-                          onClick={() => toggleResolve(comment.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleResolve(comment.id);
+                          }}
                           className={`text-sm ${comment.resolved ? 'text-green-600' : 'text-gray-400'}`}
                         >
                           {comment.resolved ? <CheckCircle size={16} /> : <Check size={16} />}
@@ -633,8 +641,17 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                     
                     <p className="text-sm mb-2">{comment.content}</p>
                     
+                    {comment.annotationData && (
+                      <div className="text-xs text-gray-500 mb-2">
+                        {activeAnnotationId === comment.id ? '주석을 보고 있습니다' : '클릭하여 주석 보기'}
+                      </div>
+                    )}
+                    
                     <button
-                      onClick={() => setReplyTo(comment.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setReplyTo(comment.id);
+                      }}
                       className="text-xs text-gray-500 hover:text-black flex items-center space-x-1"
                     >
                       <Reply size={12} />

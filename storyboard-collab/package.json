@@ -5,14 +5,13 @@
   "scripts": {
     "dev": "next dev",
     "prebuild": "npx rimraf .next || exit 0",
-    "build": "npm run prebuild && prisma generate && next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "start:with-migrate": "prisma migrate deploy && next start",
     "lint": "next lint",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
-    "prisma:studio": "prisma studio",
-    "postinstall": "prisma generate"
+    "prisma:studio": "prisma studio"
   },
   "dependencies": {
     "@prisma/client": "^5.12.0",

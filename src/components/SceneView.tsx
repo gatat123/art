@@ -228,7 +228,7 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
         {/* 프로젝트 헤더 */}
         <div className="p-4 border-b border-gray-200">
           <button 
-            onClick={() => setCurrentView('project-list')}
+            onClick={() => setCurrentView('project')}
             className="flex items-center space-x-2 text-gray-600 hover:text-black mb-4"
           >
             <ArrowLeft size={20} />

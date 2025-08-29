@@ -2,13 +2,14 @@ import React, { useRef, useState, useEffect } from 'react';
 import { X, Pen, Eraser, Download, Undo, Redo, Square, Circle, Type, Palette, MessageCircle } from 'lucide-react';
 
 interface AnnotationCanvasProps {
-  backgroundImage?: string | null;
+  imageUrl?: string | null;
   onSave: (imageData: string, comment: string) => void;
   onClose: () => void;
 }
 
-const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({ backgroundImage, onSave, onClose }) => {
+const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({ imageUrl, onSave, onClose }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const backgroundCanvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentTool, setCurrentTool] = useState<'pen' | 'eraser' | 'rectangle' | 'circle' | 'text'>('pen');
   const [currentColor, setCurrentColor] = useState('#FF0000');
@@ -20,6 +21,7 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({ backgroundImage, on
   const [textPosition, setTextPosition] = useState<{ x: number; y: number } | null>(null);
   const [startPos, setStartPos] = useState<{ x: number; y: number } | null>(null);
   const [annotationComment, setAnnotationComment] = useState('');
+  const [backgroundOpacity, setBackgroundOpacity] = useState(0.3);
 
   const colors = [
     '#FF0000', '#00FF00', '#0000FF', '#FFFF00', 
@@ -27,6 +29,36 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({ backgroundImage, on
     '#FFA500', '#800080', '#FFC0CB', '#808080'
   ];
 
+  // 배경 이미지 그리기
+  useEffect(() => {
+    const backgroundCanvas = backgroundCanvasRef.current;
+    if (!backgroundCanvas || !imageUrl) return;
+    
+    const ctx = backgroundCanvas.getContext('2d');
+    if (!ctx) return;
+
+    backgroundCanvas.width = 800;
+    backgroundCanvas.height = 600;
+
+    const img = new Image();
+    img.onload = () => {
+      ctx.clearRect(0, 0, backgroundCanvas.width, backgroundCanvas.height);
+      const scale = Math.min(backgroundCanvas.width / img.width, backgroundCanvas.height / img.height);
+      const x = (backgroundCanvas.width - img.width * scale) / 2;
+      const y = (backgroundCanvas.height - img.height * scale) / 2;
+      ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+    };
+    img.src = imageUrl;
+  }, [imageUrl]);
+
+  // 투명도 변경
+  useEffect(() => {
+    const backgroundCanvas = backgroundCanvasRef.current;
+    if (!backgroundCanvas) return;
+    backgroundCanvas.style.opacity = backgroundOpacity.toString();
+  }, [backgroundOpacity]);
+
+  // 주석 캔버스 초기화
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -34,36 +66,13 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({ backgroundImage, on
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // 캔버스 크기 설정
     canvas.width = 800;
     canvas.height = 600;
-
-    // 배경 이미지 그리기
-    if (backgroundImage) {
-      const img = new Image();
-      img.onload = () => {
-        // 이미지를 캔버스 크기에 맞게 조정
-        const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
-        const x = (canvas.width - img.width * scale) / 2;
-        const y = (canvas.height - img.height * scale) / 2;
-        
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.save();
-        ctx.globalAlpha = 0.3; // 배경 이미지 투명도
-        ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
-        ctx.restore();
-        
-        // 초기 상태 저장
-        saveToHistory();
-      };
-      img.src = backgroundImage;
-    } else {
-      // 배경이 없을 경우 흰색 배경
-      ctx.fillStyle = 'white';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      saveToHistory();
-    }
-  }, [backgroundImage]);
+    
+    // 투명한 배경으로 시작
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    saveToHistory();
+  }, []);
 
   const saveToHistory = () => {
     const canvas = canvasRef.current;
@@ -76,7 +85,6 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({ backgroundImage, on
     const newHistory = history.slice(0, historyStep + 1);
     newHistory.push(imageData);
     
-    // 최대 50개의 히스토리 유지
     if (newHistory.length > 50) {
       newHistory.shift();
     }
@@ -163,11 +171,6 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({ backgroundImage, on
         ctx.lineTo(x, y);
         ctx.stroke();
         break;
-        
-      case 'rectangle':
-      case 'circle':
-        // 도형은 mouseUp에서 그림
-        break;
     }
   };
 
@@ -238,29 +241,35 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({ backgroundImage, on
     const canvas = canvasRef.current;
     if (!canvas) return;
     
-    // 주석 레이어만 추출하기 위해 새 캔버스 생성
-    const annotationCanvas = document.createElement('canvas');
-    annotationCanvas.width = canvas.width;
-    annotationCanvas.height = canvas.height;
-    const annotationCtx = annotationCanvas.getContext('2d');
-    
-    if (!annotationCtx) return;
-    
-    // 현재 캔버스 내용을 복사 (배경 이미지 포함)
-    annotationCtx.drawImage(canvas, 0, 0);
-    
-    // 이미지 데이터 URL로 변환
-    const imageData = annotationCanvas.toDataURL('image/png');
+    // 주석만 저장 (배경 이미지 제외)
+    const imageData = canvas.toDataURL('image/png');
     onSave(imageData, annotationComment);
   };
 
   const downloadImage = () => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const backgroundCanvas = backgroundCanvasRef.current;
+    if (!canvas || !backgroundCanvas) return;
+    
+    // 합성용 캔버스 생성
+    const mergedCanvas = document.createElement('canvas');
+    mergedCanvas.width = canvas.width;
+    mergedCanvas.height = canvas.height;
+    const mergedCtx = mergedCanvas.getContext('2d');
+    
+    if (!mergedCtx) return;
+    
+    // 배경 그리기
+    mergedCtx.globalAlpha = backgroundOpacity;
+    mergedCtx.drawImage(backgroundCanvas, 0, 0);
+    
+    // 주석 그리기
+    mergedCtx.globalAlpha = 1;
+    mergedCtx.drawImage(canvas, 0, 0);
     
     const link = document.createElement('a');
     link.download = `annotation-${Date.now()}.png`;
-    link.href = canvas.toDataURL();
+    link.href = mergedCanvas.toDataURL();
     link.click();
   };
 
@@ -316,11 +325,10 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({ backgroundImage, on
             </button>
           </div>
           
-          {/* 구분선 */}
           <div className="h-8 w-px bg-gray-300"></div>
           
           {/* 색상 선택 */}
-          <div className="flex items-center space-x-2">
+          <div className="relative">
             <button
               onClick={() => setShowColorPicker(!showColorPicker)}
               className="p-2 hover:bg-gray-100 rounded flex items-center space-x-1"
@@ -334,7 +342,7 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({ backgroundImage, on
             </button>
             
             {showColorPicker && (
-              <div className="absolute top-24 bg-white border border-gray-200 rounded-lg p-2 shadow-lg grid grid-cols-6 gap-1">
+              <div className="absolute top-full mt-2 bg-white border border-gray-200 rounded-lg p-2 shadow-lg grid grid-cols-6 gap-1 z-10">
                 {colors.map(color => (
                   <button
                     key={color}
@@ -364,7 +372,23 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({ backgroundImage, on
             <span className="text-sm w-8">{brushSize}</span>
           </div>
           
-          {/* 구분선 */}
+          <div className="h-8 w-px bg-gray-300"></div>
+          
+          {/* 배경 투명도 */}
+          <div className="flex items-center space-x-2">
+            <label className="text-sm">배경 투명도:</label>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.1"
+              value={backgroundOpacity}
+              onChange={(e) => setBackgroundOpacity(Number(e.target.value))}
+              className="w-24"
+            />
+            <span className="text-sm w-12">{Math.round(backgroundOpacity * 100)}%</span>
+          </div>
+          
           <div className="h-8 w-px bg-gray-300"></div>
           
           {/* 실행 취소/재실행 */}
@@ -387,7 +411,6 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({ backgroundImage, on
             </button>
           </div>
           
-          {/* 다운로드 */}
           <button
             onClick={downloadImage}
             className="p-2 hover:bg-gray-100 rounded"
@@ -400,9 +423,18 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({ backgroundImage, on
         {/* 캔버스 영역 */}
         <div className="flex-1 p-4 bg-gray-50 overflow-auto flex items-center justify-center">
           <div className="relative">
+            {/* 배경 이미지 캔버스 */}
+            <canvas
+              ref={backgroundCanvasRef}
+              className="absolute border border-gray-300 bg-white"
+              style={{ pointerEvents: 'none' }}
+            />
+            
+            {/* 주석 캔버스 */}
             <canvas
               ref={canvasRef}
-              className="border border-gray-300 bg-white cursor-crosshair"
+              className="relative border border-gray-300 cursor-crosshair"
+              style={{ backgroundColor: 'transparent' }}
               onMouseDown={startDrawing}
               onMouseMove={draw}
               onMouseUp={stopDrawing}
@@ -428,7 +460,7 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({ backgroundImage, on
                     }
                   }}
                   onBlur={addText}
-                  className="px-2 py-1 border border-gray-300 rounded text-sm"
+                  className="px-2 py-1 border border-gray-300 rounded text-sm bg-white"
                   style={{ color: currentColor }}
                   placeholder="텍스트 입력..."
                   autoFocus
@@ -463,6 +495,7 @@ const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({ backgroundImage, on
           <button
             onClick={handleSave}
             className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800"
+            disabled={!annotationComment.trim()}
           >
             저장
           </button>

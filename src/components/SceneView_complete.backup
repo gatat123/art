@@ -1,0 +1,187 @@
+                              onClick={() => toggleResolve(comment.id)}
+                              className="text-xs text-gray-400 hover:text-green-600 flex items-center gap-1"
+                            >
+                              <Check size={12} />
+                              해결
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {comment.replies && comment.replies.length > 0 && (
+                      <div className="ml-11 space-y-2">
+                        {comment.replies.map((reply: any) => (
+                          <div key={reply.id} className="flex space-x-3">
+                            <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-xs font-bold">
+                              {reply.avatar}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <span className="font-semibold text-xs">{reply.author}</span>
+                                <span className="text-xs text-gray-400">{reply.time}</span>
+                              </div>
+                              <p className="text-xs text-gray-700">{reply.content}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {replyTo === comment.id && (
+                      <div className="ml-11 flex space-x-2">
+                        <input
+                          type="text"
+                          value={replyText}
+                          onChange={(e) => setReplyText(e.target.value)}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              addReply(comment.id);
+                            }
+                          }}
+                          placeholder="답글을 입력하세요..."
+                          className="flex-1 px-3 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:border-black"
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => addReply(comment.id)}
+                          className="px-3 py-1 bg-black text-white text-sm rounded hover:bg-gray-800"
+                        >
+                          <Send size={14} />
+                        </button>
+                        <button
+                          onClick={() => setReplyTo(null)}
+                          className="px-2 py-1 text-gray-400 hover:text-black"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+          {activeTab === 'activity' && (
+            <div className="p-4">
+              <div className="text-center py-8 text-gray-400">
+                <Clock size={32} className="mx-auto mb-2" />
+                <p>활동 기록이 없습니다</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {activeTab === 'comments' && (
+          <div className="border-t border-gray-200 p-4">
+            {pendingSketch && (
+              <div className="mb-2 p-2 bg-purple-50 rounded flex items-center justify-between">
+                <span className="text-xs text-purple-600">
+                  {imageViewMode === 'sketch' ? '초안' : '아트워크'}에 스케치가 추가됨
+                </span>
+                <button onClick={() => setPendingSketch(null)} className="text-purple-600 hover:text-purple-800">
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+            <div className="flex space-x-2">
+              <button 
+                onClick={() => setShowSketchCanvas(true)}
+                className="p-2 hover:bg-gray-100 rounded"
+                title="스케치 추가"
+              >
+                <Brush size={20} />
+              </button>
+              <input
+                type="text"
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && addComment()}
+                placeholder="댓글을 입력하세요..."
+                className="flex-1 px-3 py-2 border border-gray-200 rounded focus:outline-none focus:border-black"
+              />
+              <button
+                onClick={addComment}
+                className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800"
+              >
+                <Send size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 스케치 캔버스 모달 */}
+      {showSketchCanvas && !compareMode && (
+        <SketchCanvas
+          imageUrl={imageViewMode === 'sketch' ? currentSceneData.sketchUrl : currentSceneData.artworkUrl}
+          onSave={(sketchData) => {
+            setPendingSketch(sketchData);
+            setShowSketchCanvas(false);
+          }}
+          onClose={() => setShowSketchCanvas(false)}
+        />
+      )}
+
+      {/* 주석 캔버스 */}
+      {showAnnotation && !compareMode && (
+        <AnnotationCanvas
+          imageUrl={imageViewMode === 'sketch' ? currentSceneData.sketchUrl : currentSceneData.artworkUrl}
+          onSave={handleAnnotationSave}
+          onClose={() => setShowAnnotation(false)}
+        />
+      )}
+
+      {/* 씬 추가 모달 */}
+      {showAddSceneModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">새 씬 추가</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">씬 제목</label>
+                <input
+                  type="text"
+                  value={newSceneTitle}
+                  onChange={(e) => setNewSceneTitle(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+                  placeholder="씬 제목을 입력하세요"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">씬 설명</label>
+                <textarea
+                  value={newSceneDescription}
+                  onChange={(e) => setNewSceneDescription(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+                  rows={3}
+                  placeholder="씬 설명을 입력하세요"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowAddSceneModal(false);
+                  setNewSceneTitle('');
+                  setNewSceneDescription('');
+                }}
+                className="px-4 py-2 text-gray-600 hover:text-black"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleAddScene}
+                className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800"
+              >
+                추가
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default SceneView;

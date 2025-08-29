@@ -4,6 +4,7 @@ import AuthForm from './AuthForm';
 import StudioList from './StudioList';
 import ProjectListView from './ProjectListView';
 import SceneView from './SceneView';
+import { ErrorBoundary } from './ErrorBoundary';
 
 type ViewType = 'login' | 'studios' | 'project' | 'scene';
 
@@ -52,47 +53,24 @@ const MainApp: React.FC = () => {
   };
 
   const loadStudios = async () => {
-    // 기본 스튜디오 데이터
-    const defaultStudios = [
-      {
-        id: 1,
-        name: '드림 스튜디오',
-        description: '웹툰 제작 전문 스튜디오',
-        inviteCode: 'DREAM2024',
-        memberCount: 5,
-        projectCount: 3,
-        owner: 'admin',
-        createdAt: '2024-01-01'
-      },
-      {
-        id: 2,
-        name: '크리에이티브 랩',
-        description: '창의적인 콘텐츠 제작소',
-        inviteCode: 'CREATE99',
-        memberCount: 8,
-        projectCount: 7,
-        owner: 'designer',
-        createdAt: '2024-02-15'
-      }
-    ];
-
-    // 어드민이면 모든 스튜디오 보기, 일반 사용자는 제한된 스튜디오만
+    // 실제 데이터는 API에서 로드하도록 변경 예정
+    // 현재는 빈 배열로 시작
+    setStudios([]);
+    
+    // 어드민용 마스터 스튜디오는 유지
     if (isAdmin()) {
       setStudios([
-        ...defaultStudios,
         {
-          id: 3,
+          id: 1,
           name: '마스터 스튜디오',
           description: '프리미엄 프로젝트 전용',
           inviteCode: 'MASTER00',
-          memberCount: 3,
-          projectCount: 10,
+          memberCount: 0,
+          projectCount: 0,
           owner: 'HSG202',
-          createdAt: '2024-03-01'
+          createdAt: new Date().toISOString().split('T')[0]
         }
       ]);
-    } else {
-      setStudios(defaultStudios);
     }
   };
 
@@ -130,42 +108,9 @@ const MainApp: React.FC = () => {
   };
 
   const loadProjects = (studioId: number) => {
-    // 임시 프로젝트 데이터
-    const sampleProjects = [
-      {
-        id: 1,
-        channelId: studioId,
-        title: '환상의 숲',
-        episode: '1화',
-        status: 'in_progress',
-        progress: 75,
-        dueDate: '2024-12-25',
-        assignee: '김작가',
-        lastUpdated: '2024-12-19',
-        totalScenes: 12,
-        completedScenes: 9,
-        author: '김작가',
-        artist: '이화가',
-        createdAt: '2024-12-01'
-      },
-      {
-        id: 2,
-        channelId: studioId,
-        title: '도시의 영웅',
-        episode: '3화',
-        status: 'review',
-        progress: 50,
-        dueDate: '2024-12-30',
-        assignee: '박작가',
-        lastUpdated: '2024-12-18',
-        totalScenes: 8,
-        completedScenes: 4,
-        author: '박작가',
-        artist: '최화가',
-        createdAt: '2024-12-10'
-      }
-    ];
-    setProjects(sampleProjects);
+    // 실제 데이터는 API에서 로드하도록 변경 예정
+    // 현재는 빈 배열로 시작
+    setProjects([]);
   };
 
   const handleSelectProject = (project: any) => {
@@ -175,37 +120,18 @@ const MainApp: React.FC = () => {
   };
 
   const loadStoryboard = (projectId: number) => {
-    // 샘플 스토리보드 데이터
+    // 실제 데이터는 API에서 로드하도록 변경 예정
+    // 기본 구조만 유지
     setStoryboard({
       id: projectId,
-      title: selectedProject?.title || '프로젝트',
+      title: selectedProject?.title || '새 프로젝트',
       scenes: [
         {
           id: 1,
-          title: '오프닝',
-          description: '주인공 등장',
-          narration: '어느 평화로운 마을에...',
-          sound: '새소리, 바람소리',
-          status: 'completed',
-          sketchUrl: '/api/placeholder/600/400',
-          artworkUrl: '/api/placeholder/600/400'
-        },
-        {
-          id: 2,
-          title: '갈등 시작',
-          description: '문제 발생',
-          narration: '갑자기 나타난 몬스터...',
-          sound: '긴장감 있는 BGM',
-          status: 'in-progress',
-          sketchUrl: '/api/placeholder/600/400',
-          artworkUrl: null
-        },
-        {
-          id: 3,
-          title: '해결',
-          description: '주인공의 활약',
-          narration: '용감하게 맞서는 주인공',
-          sound: '전투 효과음',
+          title: '씬 1',
+          description: '',
+          narration: '',
+          sound: '',
           status: 'draft_pending',
           sketchUrl: null,
           artworkUrl: null
@@ -213,31 +139,8 @@ const MainApp: React.FC = () => {
       ]
     });
 
-    // 샘플 댓글 데이터
-    setComments([
-      {
-        id: 1,
-        sceneId: 0,
-        author: '김작가',
-        avatar: 'KJ',
-        content: '이 장면 정말 좋네요!',
-        time: '2시간 전',
-        type: 'comment',
-        resolved: false,
-        replies: []
-      },
-      {
-        id: 2,
-        sceneId: 0,
-        author: '이편집',
-        avatar: 'LE',
-        content: '색감 조정이 필요할 것 같습니다',
-        time: '1시간 전',
-        type: 'revision',
-        resolved: false,
-        replies: []
-      }
-    ]);
+    // 빈 댓글 배열로 시작
+    setComments([]);
   };
 
   if (loading) {
@@ -249,79 +152,85 @@ const MainApp: React.FC = () => {
   }
 
   // Render based on current view
-  switch (currentView) {
-    case 'login':
-      return (
-        <AuthForm
-          onLogin={handleLogin}
-          onRegister={handleRegister}
-        />
-      );
+  return (
+    <ErrorBoundary>
+      {(() => {
+        switch (currentView) {
+          case 'login':
+            return (
+              <AuthForm
+                onLogin={handleLogin}
+                onRegister={handleRegister}
+              />
+            );
 
-    case 'studios':
-      return (
-        <StudioList
-          studios={studios}
-          setStudios={setStudios}
-          onSelectStudio={handleSelectStudio}
-          onLogout={handleLogout}
-        />
-      );
+          case 'studios':
+            return (
+              <StudioList
+                studios={studios}
+                setStudios={setStudios}
+                onSelectStudio={handleSelectStudio}
+                onLogout={handleLogout}
+              />
+            );
 
-    case 'project':
-      return (
-        <ProjectListView
-          channelName={selectedStudio?.name || '스튜디오'}
-          channelId={selectedStudio?.id || 0}
-          projects={projects}
-          setProjects={setProjects}
-          onSelectProject={handleSelectProject}
-          currentView={currentView}
-          setCurrentView={setCurrentView}
-          showCreateProject={showCreateProject}
-          setShowCreateProject={setShowCreateProject}
-        />
-      );
+          case 'project':
+            return (
+              <ProjectListView
+                channelName={selectedStudio?.name || '스튜디오'}
+                channelId={selectedStudio?.id || 0}
+                projects={projects}
+                setProjects={setProjects}
+                onSelectProject={handleSelectProject}
+                currentView={currentView}
+                setCurrentView={setCurrentView}
+                showCreateProject={showCreateProject}
+                setShowCreateProject={setShowCreateProject}
+              />
+            );
 
-    case 'scene':
-      return (
-        <SceneView
-          storyboard={storyboard}
-          setStoryboard={setStoryboard}
-          currentScene={currentScene}
-          setCurrentScene={setCurrentScene}
-          currentView={currentView}
-          setCurrentView={setCurrentView}
-          comments={comments}
-          setComments={setComments}
-          notifications={notifications}
-          setNotifications={setNotifications}
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          showSketch={showSketch}
-          setShowSketch={setShowSketch}
-          showArtwork={showArtwork}
-          setShowArtwork={setShowArtwork}
-          compareMode={compareMode}
-          setCompareMode={setCompareMode}
-          showSketchCanvas={showSketchCanvas}
-          setShowSketchCanvas={setShowSketchCanvas}
-          pendingSketch={pendingSketch}
-          setPendingSketch={setPendingSketch}
-          selectedCommentId={selectedCommentId}
-          setSelectedCommentId={setSelectedCommentId}
-          replyTo={replyTo}
-          setReplyTo={setReplyTo}
-          replyText={replyText}
-          setReplyText={setReplyText}
-          newComment={newComment}
-          setNewComment={setNewComment}
-        />
-      );
+          case 'scene':
+            return (
+              <SceneView
+                storyboard={storyboard}
+                setStoryboard={setStoryboard}
+                currentScene={currentScene}
+                setCurrentScene={setCurrentScene}
+                currentView={currentView}
+                setCurrentView={setCurrentView}
+                comments={comments}
+                setComments={setComments}
+                notifications={notifications}
+                setNotifications={setNotifications}
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                showSketch={showSketch}
+                setShowSketch={setShowSketch}
+                showArtwork={showArtwork}
+                setShowArtwork={setShowArtwork}
+                compareMode={compareMode}
+                setCompareMode={setCompareMode}
+                showSketchCanvas={showSketchCanvas}
+                setShowSketchCanvas={setShowSketchCanvas}
+                pendingSketch={pendingSketch}
+                setPendingSketch={setPendingSketch}
+                selectedCommentId={selectedCommentId}
+                setSelectedCommentId={setSelectedCommentId}
+                replyTo={replyTo}
+                setReplyTo={setReplyTo}
+                replyText={replyText}
+                setReplyText={setReplyText}
+                newComment={newComment}
+                setNewComment={setNewComment}
+              />
+            );
 
-    default:
-      return <div>Unknown view</div>;
-  }
+          default:
+            return <div>Unknown view</div>;
+        }
+      })()}
+    </ErrorBoundary>
+  );
 };
 
 export default MainApp;

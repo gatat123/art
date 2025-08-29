@@ -83,8 +83,16 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
   const [showAddSceneModal, setShowAddSceneModal] = useState(false);
   const [newSceneTitle, setNewSceneTitle] = useState('');
   const [newSceneDescription, setNewSceneDescription] = useState('');
+  const [editingInfo, setEditingInfo] = useState(false);
+  const [editedSceneInfo, setEditedSceneInfo] = useState({
+    title: '',
+    description: '',
+    narration: '',
+    sound: ''
+  });
   const [showSketchOverlay, setShowSketchOverlay] = useState<number | null>(null);
   const [showAnnotationOverlay, setShowAnnotationOverlay] = useState<number | null>(null);
+  const [activityLog, setActivityLog] = useState<Array<{id: number; type: string; user: string; time: string; content: string}>>([]);
   const [selectedCommentType, setSelectedCommentType] = useState<'comment' | 'revision' | 'annotation'>('comment');
   const [imageLoadError, setImageLoadError] = useState<{[key: string]: boolean}>({});
 
@@ -191,10 +199,11 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
           isCurrent: true
         };
         setVersions([...versions.map(v => ({ ...v, isCurrent: false })), newVersion]);
+        addActivity('upload', '초안 이미지가 업로드되었습니다');
       };
       reader.readAsDataURL(file);
     }
-  }, [storyboard, currentScene, setStoryboard, versions, imageLoadError]);
+  }, [storyboard, currentScene, setStoryboard, versions, imageLoadError, addActivity]);
 
   const handleArtworkUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -221,10 +230,23 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
           isCurrent: true
         };
         setVersions([...versions.map(v => ({ ...v, isCurrent: false })), newVersion]);
+        addActivity('upload', '아트워크 이미지가 업로드되었습니다');
       };
       reader.readAsDataURL(file);
     }
-  }, [storyboard, currentScene, setStoryboard, versions, imageLoadError]);
+  }, [storyboard, currentScene, setStoryboard, versions, imageLoadError, addActivity]);
+
+  // 활동 로그 추가 함수
+  const addActivity = useCallback((type: string, content: string) => {
+    const activity = {
+      id: Date.now(),
+      type,
+      user: '나',
+      time: new Date().toLocaleString('ko-KR'),
+      content
+    };
+    setActivityLog(prev => [activity, ...prev]);
+  }, []);
 
   const handleAddComment = useCallback(() => {
     if (newComment.trim() || pendingSketch) {
@@ -240,11 +262,32 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
         imageType: pendingSketch ? imageViewMode : null
       };
       addComment(comment);
+      
+      // 스케치 데이터가 있으면 실제 이미지로 저장
+      if (pendingSketch && imageViewMode) {
+        const updatedScenes = [...(storyboard.scenes || [])];
+        if (imageViewMode === 'sketch') {
+          updatedScenes[currentScene] = {
+            ...updatedScenes[currentScene],
+            sketchUrl: pendingSketch
+          };
+          addActivity('sketch', '초안에 스케치가 추가되었습니다');
+        } else {
+          updatedScenes[currentScene] = {
+            ...updatedScenes[currentScene],
+            artworkUrl: pendingSketch
+          };
+          addActivity('artwork', '아트워크에 스케치가 추가되었습니다');
+        }
+        setStoryboard({ ...storyboard, scenes: updatedScenes });
+      }
+      
+      addActivity('comment', `${selectedCommentType === 'revision' ? '수정요청' : selectedCommentType === 'annotation' ? '주석' : '댓글'}이 추가되었습니다`);
       setNewComment('');
       setPendingSketch(null);
       setSelectedCommentType('comment'); // 기본값으로 리셋
     }
-  }, [newComment, pendingSketch, currentScene, selectedCommentType, imageViewMode, addComment, setNewComment, setPendingSketch]);
+  }, [newComment, pendingSketch, currentScene, selectedCommentType, imageViewMode, addComment, setNewComment, setPendingSketch, storyboard, setStoryboard, addActivity]);
 
   // 주석 저장 시 댓글로 자동 추가
   const handleAnnotationSave = useCallback((annotationData: string, comment: string) => {
@@ -264,8 +307,9 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
       imageType: imageViewMode
     };
     addComment(annotationComment);
+    addActivity('annotation', `${imageViewMode === 'sketch' ? '초안' : '아트워크'}에 주석이 추가되었습니다`);
     setShowAnnotation(false);
-  }, [currentScene, imageViewMode, annotations, addComment]);
+  }, [currentScene, imageViewMode, annotations, addComment, addActivity]);
 
   const handleImageViewModeChange = useCallback((mode: ImageViewMode) => {
     setImageViewMode(mode);
@@ -590,12 +634,23 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                           </div>
                         </div>
                       ) : (
-                        <img 
-                          src={currentSceneData.sketchUrl} 
-                          alt="스케치" 
-                          className="w-full h-full object-contain"
-                          onError={() => setImageLoadError({ ...imageLoadError, sketch: true })}
-                        />
+                        <div className="relative h-full">
+                          <img 
+                            src={currentSceneData.sketchUrl} 
+                            alt="스케치" 
+                            className="w-full h-full object-contain"
+                            onError={() => setImageLoadError({ ...imageLoadError, sketch: true })}
+                          />
+                          {/* 재업로드 버튼 */}
+                          <button
+                            onClick={() => sketchInputRef.current?.click()}
+                            className="absolute top-4 right-4 px-3 py-1.5 bg-white bg-opacity-90 hover:bg-opacity-100 text-black rounded-lg shadow-md flex items-center space-x-2 text-sm"
+                            title="새로운 초안 업로드"
+                          >
+                            <Upload size={16} />
+                            <span>재업로드</span>
+                          </button>
+                        </div>
                       )
                     ) : (
                       <div className="flex items-center justify-center h-full bg-gray-50">
@@ -635,12 +690,23 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                           </div>
                         </div>
                       ) : (
-                        <img 
-                          src={currentSceneData.artworkUrl} 
-                          alt="아트워크" 
-                          className="w-full h-full object-contain"
-                          onError={() => setImageLoadError({ ...imageLoadError, artwork: true })}
-                        />
+                        <div className="relative h-full">
+                          <img 
+                            src={currentSceneData.artworkUrl} 
+                            alt="아트워크" 
+                            className="w-full h-full object-contain"
+                            onError={() => setImageLoadError({ ...imageLoadError, artwork: true })}
+                          />
+                          {/* 재업로드 버튼 */}
+                          <button
+                            onClick={() => artworkInputRef.current?.click()}
+                            className="absolute top-4 right-4 px-3 py-1.5 bg-white bg-opacity-90 hover:bg-opacity-100 text-black rounded-lg shadow-md flex items-center space-x-2 text-sm"
+                            title="새로운 아트워크 업로드"
+                          >
+                            <Upload size={16} />
+                            <span>재업로드</span>
+                          </button>
+                        </div>
                       )
                     ) : (
                       <div className="flex items-center justify-center h-full bg-gray-50">
@@ -709,35 +775,118 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
 
         <div className="flex-1 overflow-y-auto">
           {activeTab === 'info' && (
-            <div className="p-4 space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">씬 제목</label>
-                <p className="text-sm">{currentSceneData.title}</p>
+            <div className="p-4">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-semibold">씬 정보</h3>
+                {!editingInfo ? (
+                  <button
+                    onClick={() => {
+                      setEditingInfo(true);
+                      setEditedSceneInfo({
+                        title: currentSceneData.title || '',
+                        description: currentSceneData.description || '',
+                        narration: currentSceneData.narration || '',
+                        sound: currentSceneData.sound || ''
+                      });
+                    }}
+                    className="text-sm text-gray-600 hover:text-black flex items-center space-x-1"
+                  >
+                    <Edit2 size={14} />
+                    <span>편집</span>
+                  </button>
+                ) : (
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => {
+                        const updatedScenes = [...(storyboard.scenes || [])];
+                        updatedScenes[currentScene] = {
+                          ...updatedScenes[currentScene],
+                          ...editedSceneInfo
+                        };
+                        setStoryboard({ ...storyboard, scenes: updatedScenes });
+                        setEditingInfo(false);
+                        addActivity('edit', '씬 정보가 수정되었습니다');
+                      }}
+                      className="text-sm px-3 py-1 bg-black text-white rounded hover:bg-gray-800"
+                    >
+                      저장
+                    </button>
+                    <button
+                      onClick={() => setEditingInfo(false)}
+                      className="text-sm px-3 py-1 text-gray-600 hover:text-black"
+                    >
+                      취소
+                    </button>
+                  </div>
+                )}
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">설명</label>
-                <p className="text-sm">{currentSceneData.description}</p>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">나레이션</label>
-                <p className="text-sm">{currentSceneData.narration}</p>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">사운드</label>
-                <p className="text-sm">{currentSceneData.sound}</p>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">상태</label>
-                <span className={`inline-block px-2 py-1 text-xs rounded ${
-                  currentSceneData.status === 'completed' 
-                    ? 'bg-green-100 text-green-800'
-                    : currentSceneData.status === 'in_progress'
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : 'bg-gray-100 text-gray-800'
-                }`}>
-                  {currentSceneData.status === 'completed' ? '완료' : 
-                   currentSceneData.status === 'in_progress' ? '진행중' : '대기중'}
-                </span>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">씬 제목</label>
+                  {editingInfo ? (
+                    <input
+                      type="text"
+                      value={editedSceneInfo.title}
+                      onChange={(e) => setEditedSceneInfo({...editedSceneInfo, title: e.target.value})}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:border-black"
+                    />
+                  ) : (
+                    <p className="text-sm">{currentSceneData.title}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">설명</label>
+                  {editingInfo ? (
+                    <textarea
+                      value={editedSceneInfo.description}
+                      onChange={(e) => setEditedSceneInfo({...editedSceneInfo, description: e.target.value})}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:border-black"
+                      rows={3}
+                    />
+                  ) : (
+                    <p className="text-sm">{currentSceneData.description}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">나레이션</label>
+                  {editingInfo ? (
+                    <textarea
+                      value={editedSceneInfo.narration}
+                      onChange={(e) => setEditedSceneInfo({...editedSceneInfo, narration: e.target.value})}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:border-black"
+                      rows={2}
+                    />
+                  ) : (
+                    <p className="text-sm">{currentSceneData.narration}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">사운드</label>
+                  {editingInfo ? (
+                    <input
+                      type="text"
+                      value={editedSceneInfo.sound}
+                      onChange={(e) => setEditedSceneInfo({...editedSceneInfo, sound: e.target.value})}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:border-black"
+                    />
+                  ) : (
+                    <p className="text-sm">{currentSceneData.sound}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">상태</label>
+                  <span className={`inline-block px-2 py-1 text-xs rounded ${
+                    currentSceneData.status === 'completed' 
+                      ? 'bg-green-100 text-green-800'
+                      : currentSceneData.status === 'in_progress'
+                      ? 'bg-yellow-100 text-yellow-800'
+                      : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {currentSceneData.status === 'completed' ? '완료' : 
+                     currentSceneData.status === 'in_progress' ? '진행중' : '대기중'}
+                  </span>
+                </div>
               </div>
             </div>
           )}
@@ -768,10 +917,32 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
 
           {activeTab === 'activity' && (
             <div className="p-4">
-              <div className="text-center py-8 text-gray-400">
-                <Clock size={32} className="mx-auto mb-2" />
-                <p>활동 기록이 없습니다</p>
-              </div>
+              {activityLog.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <Clock size={32} className="mx-auto mb-2" />
+                  <p>활동 기록이 없습니다</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {activityLog.map((activity) => (
+                    <div key={activity.id} className="flex items-start space-x-3 text-sm">
+                      <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
+                        activity.type === 'comment' ? 'bg-blue-500' :
+                        activity.type === 'sketch' ? 'bg-purple-500' :
+                        activity.type === 'artwork' ? 'bg-green-500' :
+                        activity.type === 'annotation' ? 'bg-orange-500' :
+                        'bg-gray-500'
+                      }`} />
+                      <div className="flex-1">
+                        <p className="text-gray-700">{activity.content}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {activity.user} • {activity.time}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

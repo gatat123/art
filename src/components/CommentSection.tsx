@@ -74,9 +74,9 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   };
 
   return (
-    <>
+    <div className="flex flex-col h-full">
       {/* 헤더 */}
-      <div className="h-14 border-b border-gray-200 flex items-center justify-between px-4">
+      <div className="h-14 border-b border-gray-200 flex items-center justify-between px-4 flex-shrink-0">
         <div className="flex space-x-6">
           <button className="pb-2 text-sm font-medium text-black border-b-2 border-black">
             댓글 ({filteredComments.length})
@@ -133,7 +133,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
       </div>
 
       {/* 댓글 입력 */}
-      <div className="border-t border-gray-200 p-4 space-y-3">
+      <div className="border-t border-gray-200 p-4 space-y-3 flex-shrink-0">
         {/* 태그 선택 버튼 */}
         <div className="flex items-center space-x-2">
           <span className="text-sm text-gray-600">태그:</span>
@@ -198,6 +198,6 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
           </button>
         </div>
       </div>
-    </>
+    </div>
   );
 };

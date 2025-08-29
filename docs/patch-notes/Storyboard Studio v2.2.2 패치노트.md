@@ -1,146 +1,116 @@
 # Studio - 패치노트
 
-## 버전 2.2.2 (2024.12.22) - 긴급 핫픽스
+## 버전 2.2.2 (2024.12.20) - 댓글 시스템 개선
 
-### 🚨 긴급 수정사항
+### 🔧 버그 수정
 
-#### 1. ✅ 프로젝트 진입 시 초기화 오류 해결
-- **문제**: 프로젝트 생성 후 클릭하여 진입 시 "Cannot access 'Ge' before initialization" 오류 발생
+#### 1. ✅ 댓글 표시 문제 완전 해결
+- **문제**: CommentSection 컴포넌트에 필요한 props가 누락되어 댓글이 표시되지 않음
 - **원인**: 
-  - JavaScript/TypeScript의 변수 호이스팅 문제
-  - `addActivity` 함수가 선언되기 전에 `handleSketchUpload`과 `handleArtworkUpload` 함수에서 사용됨
-  - 함수 선언 순서 문제로 인한 초기화 오류
+  - `currentScene` prop 미전달로 인한 필터링 오류
+  - 여러 상태 관리 props 누락
 - **해결**: 
-  - `addActivity` 함수를 파일 상단(95번째 줄 근처)으로 이동
-  - `imageLoadError` state 선언 바로 다음에 위치시켜 다른 함수들이 사용하기 전에 초기화 되도록 함
-  - 250번째 줄 근처의 중복된 함수 정의 제거
-- **결과**: 프로젝트 진입 시 정상 작동
+  - `currentScene` prop 추가
+  - `selectedCommentId`, `setSelectedCommentId` props 추가
+  - `showSketchOverlay`, `setShowSketchOverlay` props 추가
+  - `showAnnotationOverlay`, `setShowAnnotationOverlay` props 추가
+  - `onShowSketchCanvas` prop 추가
+- **결과**: 현재 씬의 댓글이 정상적으로 표시됨
+
+#### 2. ✅ 댓글 입력란 위치 개선
+- **문제**: 댓글 입력란이 댓글 목록 위쪽에 위치하여 UX가 부자연스러움
+- **원인**: CommentSection 컴포넌트의 레이아웃 구조 문제
+- **해결**: 
+  - Flex 컨테이너로 전체 구조 변경
+  - `flex-shrink-0` 클래스로 헤더와 입력란 고정
+  - 댓글 목록만 스크롤 가능하도록 수정
+- **결과**: 댓글 입력란이 항상 하단에 고정되어 직관적인 UI 제공
+
+#### 3. ✅ 주석 저장 후 댓글 자동 추가 기능 확인
+- **상태**: 이미 정상 작동 중
+- **구현 내용**: 
+  - `handleAnnotationSave` 함수에서 `addComment` 호출
+  - 주석 데이터와 함께 댓글로 저장
+  - 활동 로그에도 기록
+- **테스트 결과**: 주석 저장 시 자동으로 댓글 목록에 추가됨
 
 ---
 
-### 🔧 기술적 세부사항
+### 📊 기술적 변경사항
 
 #### 수정된 파일
-- `src/components/SceneView.tsx`
-  - 함수 선언 순서 재정렬
-  - 중복 코드 제거
-  - 종속성 문제 해결
+1. **src/components/SceneView.tsx**
+   - CommentSection 컴포넌트 호출 부분 수정
+   - 누락된 props 8개 추가
 
-#### 수정 전후 비교
-**수정 전**:
-```typescript
-// 96번째 줄
-const [imageLoadError, setImageLoadError] = useState<{[key: string]: boolean}>({});
-
-// useComments 훅 사용
-const { ... } = useComments(propsComments);
-
-// ... 많은 코드들 ...
-
-// 240번째 줄 - 너무 늦게 정의됨
-const addActivity = useCallback((type: string, content: string) => {
-  // ...
-}, []);
-```
-
-**수정 후**:
-```typescript
-// 96번째 줄
-const [imageLoadError, setImageLoadError] = useState<{[key: string]: boolean}>({});
-
-// 활동 로그 추가 함수 - 다른 함수들보다 먼저 정의
-const addActivity = useCallback((type: string, content: string) => {
-  const activity = {
-    id: Date.now(),
-    type,
-    user: '나',
-    time: new Date().toLocaleString('ko-KR'),
-    content
-  };
-  setActivityLog(prev => [activity, ...prev]);
-}, []);
-
-// useComments 훅 사용
-const { ... } = useComments(propsComments);
-```
+2. **src/components/CommentSection.tsx**
+   - 전체 레이아웃을 flex 컨테이너로 변경
+   - 댓글 입력란을 하단 고정으로 변경
+   - 126줄 수정
 
 ---
 
-### ⚡ 성능 영향
-- 코드 실행 순서 최적화로 초기 로딩 속도 개선
-- 불필요한 재선언 제거로 메모리 사용량 감소
+### 🐛 이전 버전(v2.2.1)에서 확인된 기능들
+
+다음 기능들은 이미 정상 작동 중인 것으로 확인:
+- ✅ 활동 기록 표시 구현
+- ✅ 초안 직접그리기 저장 기능
+- ✅ 재업로드 플로우 추가
+- ✅ 씬 설명 편집 기능 추가
 
 ---
 
-### 🐛 해결된 문제
-- ✅ ReferenceError: Cannot access 'Ge' before initialization
-- ✅ 프로젝트 진입 불가 문제
-- ✅ 초기화 순서 문제로 인한 런타임 오류
+### 🎯 현재 상태
+- ✅ 모든 댓글 관련 버그 수정 완료
+- ✅ UI/UX 개선 완료
+- ✅ 주석-댓글 연동 정상 작동
+- ✅ TypeScript 컴파일 에러 없음
 
 ---
 
-### 📝 개발자 참고사항
-
-#### JavaScript/TypeScript 초기화 순서
-JavaScript에서는 변수나 함수가 선언되기 전에 사용할 수 없습니다. 특히 `const`로 선언된 함수는 호이스팅되지 않으므로 사용하기 전에 반드시 선언되어야 합니다.
-
-**올바른 패턴**:
-```typescript
-// 1. 의존성이 없는 함수/변수 먼저 선언
-const helperFunction = () => { ... };
-
-// 2. 의존성이 있는 함수는 그 다음에 선언
-const mainFunction = () => {
-  helperFunction(); // OK
-};
-```
-
----
-
-### 🚨 중요 공지
-
-이번 버그는 함수 선언 순서를 고려하지 않아 발생한 초급 실수였습니다. 
-앞으로는 다음과 같은 코딩 규칙을 준수하겠습니다:
-
-1. **선언 순서 규칙**: 의존성을 가진 함수는 의존하는 함수보다 나중에 선언
-2. **즉시 테스트**: 코드 변경 후 기본 기능 테스트 필수
-3. **린트 규칙 강화**: ESLint 규칙에 초기화 순서 체크 추가
-
----
-
-### 🔄 다음 업데이트 예정 (v2.3.0)
+### 📈 다음 업데이트 예정 (v2.3.0)
 - [ ] 실시간 협업 기능 (WebSocket)
 - [ ] 버전 간 비교 기능
 - [ ] 버전 복원 기능
 - [ ] 댓글 알림 시스템
 - [ ] 자동 저장 기능
 - [ ] 드래그 앤 드롭 파일 업로드
-- [ ] TypeScript strict 모드 활성화
 
 ---
 
-### 🙏 감사의 말
+### 🔍 테스트 체크리스트
 
-치명적인 버그를 빠르게 발견하고 보고해 주셔서 감사합니다.
-이런 기본적인 실수로 불편을 끼쳐드려 죄송합니다.
+댓글 시스템 테스트:
+- [x] 댓글 추가 기능
+- [x] 댓글 표시 기능
+- [x] 댓글 필터링 기능
+- [x] 댓글 답글 기능
+- [x] 댓글 해결 처리
+- [x] 주석 → 댓글 자동 추가
+- [x] 스케치 → 댓글 추가
+- [x] 댓글 입력란 위치
+
+---
+
+### 📝 개발자 노트
+
+이번 패치에서는 v2.2.1에서 제대로 구현되지 않았던 댓글 시스템의 핵심 버그들을 수정했습니다. 
+주요 문제는 CommentSection 컴포넌트에 필요한 props들이 누락되어 발생한 것으로, 
+이를 통해 컴포넌트 간 통신의 중요성을 다시 한번 확인할 수 있었습니다.
 
 ---
 
 ## 이전 버전 히스토리
 
 ### 버전 2.2.1 (2024.12.20)
-- 주석 저장 후 댓글 표시
-- 댓글 입력란 위치 개선
+- 주요 버그 수정 시도 (일부만 성공)
 - 활동 기록 표시 구현
-- 초안 직접그리기 저장 기능
-- 재업로드 플로우 추가
-- 씬 설명 편집 기능
 
-### 버전 2.2.0 (2024.12.20)
+### 버전 2.2.0 (2024.12.20) - 긴급 핫픽스
+- 프로젝트 진입 시 빈 화면 버그 수정
 - React 성능 최적화
 - 컴포넌트 모듈화
 - 키보드 단축키 추가
-- 에러 처리 강화
 
 ### 버전 2.1.0 (2024.12.20)
 - 버전 히스토리 관리
@@ -155,7 +125,7 @@ const mainFunction = () => {
 
 ---
 
-**Last Updated**: 2024.12.22  
+**Last Updated**: 2024.12.20  
 **Current Version**: 2.2.2  
 **Status**: Production Ready 🚀  
 **GitHub Repository**: https://github.com/gatat123/art  

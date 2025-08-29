@@ -894,6 +894,7 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
           {activeTab === 'comments' && (
             <CommentSection
               comments={filteredComments}
+              currentScene={currentScene}
               onAddComment={handleAddComment}
               onToggleResolve={toggleResolve}
               onAddReply={addReply}
@@ -912,6 +913,13 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
               setPendingSketch={setPendingSketch}
               showSketchCanvas={showSketchCanvas}
               setShowSketchCanvas={setShowSketchCanvas}
+              selectedCommentId={selectedCommentId}
+              setSelectedCommentId={setSelectedCommentId}
+              showSketchOverlay={showSketchOverlay}
+              setShowSketchOverlay={setShowSketchOverlay}
+              showAnnotationOverlay={showAnnotationOverlay}
+              setShowAnnotationOverlay={setShowAnnotationOverlay}
+              onShowSketchCanvas={() => setShowSketchCanvas(true)}
             />
           )}
 

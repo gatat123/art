@@ -96,6 +96,18 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
   const [selectedCommentType, setSelectedCommentType] = useState<'comment' | 'revision' | 'annotation'>('comment');
   const [imageLoadError, setImageLoadError] = useState<{[key: string]: boolean}>({});
 
+  // 활동 로그 추가 함수 - 다른 함수들보다 먼저 정의
+  const addActivity = useCallback((type: string, content: string) => {
+    const activity = {
+      id: Date.now(),
+      type,
+      user: '나',
+      time: new Date().toLocaleString('ko-KR'),
+      content
+    };
+    setActivityLog(prev => [activity, ...prev]);
+  }, []);
+
   // useComments 훅 사용
   const {
     comments,
@@ -235,18 +247,6 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
       reader.readAsDataURL(file);
     }
   }, [storyboard, currentScene, setStoryboard, versions, imageLoadError, addActivity]);
-
-  // 활동 로그 추가 함수
-  const addActivity = useCallback((type: string, content: string) => {
-    const activity = {
-      id: Date.now(),
-      type,
-      user: '나',
-      time: new Date().toLocaleString('ko-KR'),
-      content
-    };
-    setActivityLog(prev => [activity, ...prev]);
-  }, []);
 
   const handleAddComment = useCallback(() => {
     if (newComment.trim() || pendingSketch) {

@@ -15,6 +15,7 @@ interface Studio {
   projectCount: number;
   owner: string;
   createdAt: string;
+  joinedAt?: string;  // 참가 시간 추가
 }
 
 interface StudioListProps {
@@ -94,17 +95,35 @@ const StudioList: React.FC<StudioListProps> = ({
   };
 
   const handleJoinStudio = () => {
-    // 초대코드로 스튜디오 찾기
-    const studio = studios.find(s => s.inviteCode === joinCode.toUpperCase());
-    if (studio) {
-      // 실제로는 API 호출로 멤버 추가
-      alert(`${studio.name} 스튜디오에 참가했습니다!`);
-      setJoinCode('');
-      setShowJoinModal(false);
-      onSelectStudio(studio);
-    } else {
-      alert('유효하지 않은 초대코드입니다.');
+    if (!joinCode.trim()) {
+      alert('초대코드를 입력해주세요.');
+      return;
     }
+
+    // 데모 초대코드 처리
+    const demoStudio: Studio = {
+      id: Date.now(),
+      name: `초대받은 스튜디오 ${joinCode}`,
+      description: '초대코드로 참가한 스튜디오입니다.',
+      inviteCode: joinCode.toUpperCase(),
+      memberCount: 5,
+      projectCount: 3,
+      owner: 'Studio Owner',
+      createdAt: new Date().toISOString().split('T')[0],
+      joinedAt: new Date().toISOString()  // 참가 시간 기록
+    };
+
+    // 스튜디오 목록에 추가 (중복 체크)
+    if (!studios.find(s => s.inviteCode === joinCode.toUpperCase())) {
+      setStudios([...studios, demoStudio]);
+      alert(`스튜디오에 참가했습니다!`);
+    } else {
+      alert('이미 참가한 스튜디오입니다.');
+    }
+    
+    setJoinCode('');
+    setShowJoinModal(false);
+    // onSelectStudio(demoStudio); // 바로 이동하지 않음
   };
 
   const openInviteModal = (studio: Studio) => {
@@ -196,54 +215,37 @@ const StudioList: React.FC<StudioListProps> = ({
         {/* Studios Grid/List */}
         {viewMode === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredStudios.map((studio) => (
-              <div
-                key={studio.id}
-                className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition cursor-pointer relative"
-              >
-                <div className="absolute top-4 right-4">
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openInviteModal(studio);
-                    }}
-                    className="text-gray-400 hover:text-black"
-                  >
-                    <MoreVertical size={20} />
-                  </button>
-                </div>
-                <div onClick={() => onSelectStudio(studio)}>
-                  <h3 className="text-xl font-bold mb-2">{studio.name}</h3>
-                  <p className="text-gray-600 mb-4">{studio.description}</p>
-                  <div className="flex justify-between text-sm text-gray-500">
-                    <span className="flex items-center">
-                      <Users size={16} className="mr-1" />
-                      {studio.memberCount} 멤버
-                    </span>
-                    <span className="flex items-center">
-                      <Briefcase size={16} className="mr-1" />
-                      {studio.projectCount} 프로젝트
-                    </span>
+            {filteredStudios.map((studio) => {
+              const isNew = studio.joinedAt && 
+                new Date(studio.joinedAt) > new Date(Date.now() - 5 * 60 * 1000); // 5분 이내 참가
+              
+              return (
+                <div
+                  key={studio.id}
+                  className={`bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition cursor-pointer relative ${
+                    isNew ? 'ring-2 ring-blue-500 ring-opacity-50' : ''
+                  }`}
+                >
+                  {isNew && (
+                    <div className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
+                      NEW
+                    </div>
+                  )}
+                  <div className="absolute top-4 right-4">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openInviteModal(studio);
+                      }}
+                      className="text-gray-400 hover:text-black"
+                    >
+                      <MoreVertical size={20} />
+                    </button>
                   </div>
-                  <div className="mt-3 pt-3 border-t border-gray-100">
-                    <span className="text-xs text-gray-400">초대코드: {studio.inviteCode}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {filteredStudios.map((studio) => (
-              <div
-                key={studio.id}
-                className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition cursor-pointer"
-              >
-                <div className="flex justify-between items-center">
-                  <div className="flex-1" onClick={() => onSelectStudio(studio)}>
+                  <div onClick={() => onSelectStudio(studio)}>
                     <h3 className="text-xl font-bold mb-2">{studio.name}</h3>
-                    <p className="text-gray-600 mb-3">{studio.description}</p>
-                    <div className="flex space-x-6 text-sm text-gray-500">
+                    <p className="text-gray-600 mb-4">{studio.description}</p>
+                    <div className="flex justify-between text-sm text-gray-500">
                       <span className="flex items-center">
                         <Users size={16} className="mr-1" />
                         {studio.memberCount} 멤버
@@ -252,23 +254,66 @@ const StudioList: React.FC<StudioListProps> = ({
                         <Briefcase size={16} className="mr-1" />
                         {studio.projectCount} 프로젝트
                       </span>
-                      <span>초대코드: {studio.inviteCode}</span>
-                      <span>생성일: {studio.createdAt}</span>
-                      <span>소유자: {studio.owner}</span>
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <span className="text-xs text-gray-400">초대코드: {studio.inviteCode}</span>
                     </div>
                   </div>
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openInviteModal(studio);
-                    }}
-                    className="text-gray-400 hover:text-black ml-4"
-                  >
-                    <MoreVertical size={20} />
-                  </button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredStudios.map((studio) => {
+              const isNew = studio.joinedAt && 
+                new Date(studio.joinedAt) > new Date(Date.now() - 5 * 60 * 1000); // 5분 이내 참가
+              
+              return (
+                <div
+                  key={studio.id}
+                  className={`bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition cursor-pointer ${
+                    isNew ? 'ring-2 ring-blue-500 ring-opacity-50' : ''
+                  }`}
+                >
+                  <div className="flex justify-between items-center">
+                    <div className="flex-1" onClick={() => onSelectStudio(studio)}>
+                      <div className="flex items-center space-x-3">
+                        <h3 className="text-xl font-bold">{studio.name}</h3>
+                        {isNew && (
+                          <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
+                            NEW
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-gray-600 mb-3">{studio.description}</p>
+                      <div className="flex space-x-6 text-sm text-gray-500">
+                        <span className="flex items-center">
+                          <Users size={16} className="mr-1" />
+                          {studio.memberCount} 멤버
+                        </span>
+                        <span className="flex items-center">
+                          <Briefcase size={16} className="mr-1" />
+                          {studio.projectCount} 프로젝트
+                        </span>
+                        <span>초대코드: {studio.inviteCode}</span>
+                        <span>생성일: {studio.createdAt}</span>
+                        <span>소유자: {studio.owner}</span>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openInviteModal(studio);
+                      }}
+                      className="text-gray-400 hover:text-black ml-4"
+                    >
+                      <MoreVertical size={20} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 

@@ -58,11 +58,8 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   commentFilter,
   setCommentFilter,
 }) => {
-  const filteredComments = comments.filter(c => {
-    const matchesScene = c.sceneId === currentScene;
-    const matchesFilter = commentFilter === 'all' || c.type === commentFilter;
-    return matchesScene && matchesFilter;
-  });
+  // Remove the filter logic here since it's already filtered in the parent
+  const filteredComments = comments;
 
   const toggleSketchOverlay = (commentId: number) => {
     setShowSketchOverlay(showSketchOverlay === commentId ? null : commentId);

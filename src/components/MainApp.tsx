@@ -222,6 +222,12 @@ const MainApp: React.FC = () => {
                 setReplyText={setReplyText}
                 newComment={newComment}
                 setNewComment={setNewComment}
+                onSceneCountUpdate={(projectId: number, newCount: number) => {
+                  // 프로젝트 목록에서 씬 카운트 업데이트
+                  setProjects(projects.map(p => 
+                    p.id === projectId ? { ...p, sceneCount: newCount } : p
+                  ));
+                }}
               />
             );
 

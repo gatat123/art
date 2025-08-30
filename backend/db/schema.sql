@@ -81,6 +81,10 @@ CREATE TABLE IF NOT EXISTS comments (
   user_id INTEGER REFERENCES users(id),
   content TEXT NOT NULL,
   parent_id INTEGER REFERENCES comments(id) ON DELETE CASCADE,
+  annotation_data TEXT,
+  image_type VARCHAR(50),
+  tag VARCHAR(50),
+  resolved BOOLEAN DEFAULT false,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

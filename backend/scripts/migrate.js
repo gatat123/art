@@ -23,7 +23,7 @@ async function migrate() {
     console.log('🔄 Running migrations...');
     
     // 마이그레이션 파일들 읽기 (migrations 폴더가 있다면)
-    const migrationsDir = path.join(__dirname, '..', 'migrations');
+    const migrationsDir = path.join(__dirname, '..', 'db', 'migrations');
     
     if (fs.existsSync(migrationsDir)) {
       const files = fs.readdirSync(migrationsDir)

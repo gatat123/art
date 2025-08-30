@@ -29,10 +29,25 @@ const ImageZoomViewer: React.FC<ImageZoomViewerProps> = ({ imageUrl, imageType, 
   }, [scale]);
 
   const handleZoomOut = useCallback(() => {
-    const currentIndex = zoomLevels.findIndex(level => level > scale);
+    // 현재 scale과 가장 가까운 zoomLevel의 인덱스를 찾기
+    let currentIndex = -1;
+    for (let i = 0; i < zoomLevels.length; i++) {
+      if (zoomLevels[i] >= scale) {
+        currentIndex = i;
+        break;
+      }
+    }
+    
+    // 현재 scale이 모든 zoomLevel보다 큰 경우
+    if (currentIndex === -1) {
+      currentIndex = zoomLevels.length - 1;
+    }
+    
+    // 이전 레벨로 축소
     if (currentIndex > 0) {
       setScale(zoomLevels[currentIndex - 1]);
-    } else if (scale > zoomLevels[0]) {
+    } else {
+      // 이미 최소 레벨인 경우
       setScale(zoomLevels[0]);
     }
   }, [scale]);

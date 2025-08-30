@@ -1,0 +1,8 @@
+feat: Railway deployment setup completed (v2.2.5)
+
+- Add backend/.env.production file
+- Create backend/RAILWAY_DEPLOYMENT.md deployment guide
+- Document environment variables configuration
+- Write patch notes v2.2.5
+- Add WebSocket support
+- Improve frontend API integration

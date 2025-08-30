@@ -46,17 +46,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
         return;
       }
-      
-      // Check if it's a demo token
-      if (token.startsWith('demo-token-')) {
-        setUser({
-          id: 'demo-user',
-          username: 'demo',
-          email: 'demo@example.com'
-        });
-        setLoading(false);
-        return;
-      }
 
       const response = await axios.get('/api/auth/me', {
         headers: { Authorization: `Bearer ${token}` }
@@ -90,23 +79,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     
-    // Demo account handling
-    if (username === 'demo' && password === 'demo123') {
-      const demoUser = {
-        id: 'demo-user',
-        username: 'demo',
-        email: 'demo@example.com'
-      };
-      
-      const token = 'demo-token-' + Date.now();
-      localStorage.setItem('auth-token', token);
-      document.cookie = `auth-token=${token}; path=/`;
-      setUser(demoUser);
-      
-      router.push('/studio');
-      return;
-    }
-    
     // Regular API login
     try {
       const response = await axios.post('/api/auth/login', { username, password });
@@ -123,19 +95,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signup = async (username: string, email: string, password: string) => {
-    // Demo signup (client-side only)
-    const demoUser = {
-      id: 'user-' + Date.now(),
-      username: username,
-      email: email
-    };
-    
-    const token = 'demo-token-' + Date.now();
-    localStorage.setItem('auth-token', token);
-    document.cookie = `auth-token=${token}; path=/`;
-    setUser(demoUser);
-    
-    router.push('/studio');
+    // Regular API signup
+    try {
+      const response = await axios.post('/api/auth/signup', { username, email, password });
+      const { token, user } = response.data;
+      
+      localStorage.setItem('auth-token', token);
+      document.cookie = `auth-token=${token}; path=/`;
+      setUser(user);
+      
+      router.push('/studio');
+    } catch (error) {
+      throw new Error('회원가입에 실패했습니다');
+    }
   };
 
   const logout = () => {

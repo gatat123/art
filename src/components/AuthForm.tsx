@@ -35,15 +35,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onRegister }) => {
           
           await onLogin(username, password);
         } catch (apiError) {
-          // 백엔드가 없을 경우 데모 로그인 허용
-          if (username === 'demo' && password === 'demo123') {
-            localStorage.setItem('authToken', 'demo-token-' + Date.now());
-            localStorage.setItem('userRole', 'user');
-            localStorage.setItem('username', 'demo');
-            await onLogin(username, password);
-          } else {
-            throw new Error('잘못된 사용자명 또는 비밀번호입니다');
-          }
+          throw new Error('잘못된 사용자명 또는 비밀번호입니다');
         }
       } else {
         // 회원가입
@@ -77,7 +69,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onRegister }) => {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-              placeholder={isLogin ? "demo 또는 HSG202" : "사용자명"}
+              placeholder="사용자명"
               required
             />
           </div>
@@ -107,7 +99,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onRegister }) => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-              placeholder={isLogin ? "demo123 또는 1004mobil!#" : "비밀번호 (6자 이상)"}
+              placeholder={isLogin ? "비밀번호" : "비밀번호 (6자 이상)"}
               required
               minLength={isLogin ? undefined : 6}
             />
@@ -142,16 +134,6 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onRegister }) => {
             </button>
           </p>
         </div>
-
-        {isLogin && (
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-600 font-medium mb-2">데모 계정:</p>
-            <p className="text-sm text-gray-700">
-              사용자명: <span className="font-mono">demo</span><br />
-              비밀번호: <span className="font-mono">demo123</span>
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );

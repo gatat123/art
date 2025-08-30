@@ -732,7 +732,7 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                     {currentSceneData.artworkUrl && (
                       <button
                         onClick={() => handleImageZoom(currentSceneData.artworkUrl, 'artwork')}
-                        className="absolute top-4 right-24 p-2 bg-white bg-opacity-90 hover:bg-opacity-100 text-black rounded-lg shadow-md z-10"
+                        className="absolute top-4 right-32 p-2 bg-white bg-opacity-90 hover:bg-opacity-100 text-black rounded-lg shadow-md z-10"
                         title="이미지 확대"
                       >
                         <ZoomIn size={16} />
@@ -804,7 +804,7 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                           {/* 확대 버튼 */}
                           <button
                             onClick={() => handleImageZoom(currentSceneData.sketchUrl, 'sketch')}
-                            className="absolute top-4 right-24 p-2 bg-white bg-opacity-90 hover:bg-opacity-100 text-black rounded-lg shadow-md"
+                            className="absolute top-4 right-32 p-2 bg-white bg-opacity-90 hover:bg-opacity-100 text-black rounded-lg shadow-md"
                             title="이미지 확대"
                           >
                             <ZoomIn size={16} />
@@ -879,7 +879,7 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                           {/* 확대 버튼 */}
                           <button
                             onClick={() => handleImageZoom(currentSceneData.artworkUrl, 'artwork')}
-                            className="absolute top-4 right-24 p-2 bg-white bg-opacity-90 hover:bg-opacity-100 text-black rounded-lg shadow-md"
+                            className="absolute top-4 right-32 p-2 bg-white bg-opacity-90 hover:bg-opacity-100 text-black rounded-lg shadow-md"
                             title="이미지 확대"
                           >
                             <ZoomIn size={16} />

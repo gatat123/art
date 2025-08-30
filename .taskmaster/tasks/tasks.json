@@ -289,11 +289,25 @@
         ],
         "status": "pending",
         "subtasks": []
+      },
+      {
+        "id": 21,
+        "title": "Add Missing Fields to Comments Table Migration",
+        "description": "Create a database migration file to add annotation_data, image_type, tag, and resolved fields to the comments table to support enhanced annotation functionality.",
+        "details": "1. Create a new database migration file using the appropriate naming convention (timestamp_add_fields_to_comments.js)\n2. Implement the migration to add the following fields to the comments table:\n   - annotation_data: TEXT column to store JSON or serialized annotation drawing data\n   - image_type: VARCHAR(50) to categorize the type of image being annotated\n   - tag: VARCHAR(50) to support comment categorization and filtering\n   - resolved: BOOLEAN with DEFAULT false to track comment resolution status\n\n3. Example migration file (using Knex.js):\n```javascript\nexports.up = function(knex) {\n  return knex.schema.alterTable('comments', table => {\n    table.text('annotation_data').nullable();\n    table.string('image_type', 50).nullable();\n    table.string('tag', 50).nullable();\n    table.boolean('resolved').defaultTo(false);\n  });\n};\n\nexports.down = function(knex) {\n  return knex.schema.alterTable('comments', table => {\n    table.dropColumn('annotation_data');\n    table.dropColumn('image_type');\n    table.dropColumn('tag');\n    table.dropColumn('resolved');\n  });\n};\n```\n\n4. Update any relevant model files to include the new fields in validation and type definitions\n5. Ensure proper documentation of the new fields in code comments\n6. Consider adding indexes if these fields will be frequently queried\n7. Update any API documentation to reflect the new fields\n8. Consider data validation for the new fields in the API layer",
+        "testStrategy": "1. Verify the migration runs successfully in development environment\n2. Confirm the new columns are added to the comments table with correct data types\n3. Test inserting comments with the new fields to ensure they accept and store data correctly\n4. Test the rollback functionality of the migration to ensure it properly removes the added columns\n5. Verify that existing comments in the database are not affected by the migration\n6. Test API endpoints that interact with comments to ensure they handle the new fields correctly\n7. Validate that the annotation_data field properly stores and retrieves complex JSON data\n8. Test the default value of the resolved field works as expected\n9. Verify any model validations for the new fields function correctly",
+        "status": "pending",
+        "dependencies": [
+          14,
+          16
+        ],
+        "priority": "medium",
+        "subtasks": []
       }
     ],
     "metadata": {
       "created": "2025-08-28T05:21:39.600Z",
-      "updated": "2025-08-30T08:27:47.334Z",
+      "updated": "2025-08-30T14:38:07.094Z",
       "description": "Tasks for master context"
     }
   },

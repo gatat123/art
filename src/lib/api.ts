@@ -1,3 +1,5 @@
+import axios from 'axios';
+
 // API 클라이언트 설정
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 
   (process.env.NODE_ENV === 'production' 
@@ -195,23 +197,28 @@ export const scenesApi = {
 
 // Images API
 export const imagesApi = {
-  upload: async (data: FormData) => {
+  upload: async (data: FormData, onUploadProgress?: (progressEvent: any) => void) => {
     const token = localStorage.getItem('authToken');
     
-    const response = await fetch(`${API_BASE_URL}/images/upload`, {
-      method: 'POST',
-      headers: {
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-      },
-      body: data,
-    });
+    try {
+      const response = await axios.post(`${API_BASE_URL}/images/upload`, data, {
+        headers: {
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+        },
+        onUploadProgress: onUploadProgress,
+      });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Upload failed' }));
-      throw new ApiError(response.status, error.error || 'Upload failed');
+      return response.data;
+    } catch (error: any) {
+      if (error.response) {
+        throw new ApiError(error.response.status, error.response.data?.error || 'Upload failed');
+      }
+      throw new Error('Network error');
     }
+  },
 
-    return response.json();
+  uploadImage: async (data: FormData, onUploadProgress?: (progressEvent: any) => void) => {
+    return imagesApi.upload(data, onUploadProgress);
   },
 
   delete: async (id: string) => {
@@ -223,10 +230,17 @@ export const imagesApi = {
 
 // Comments API
 export const commentsApi = {
+  list: async (sceneId: string) => {
+    return fetchWithAuth(`/comments?scene_id=${sceneId}`);
+  },
+
   create: async (data: { 
     scene_id: string; 
     content: string; 
-    parent_id?: string 
+    parent_id?: string;
+    annotation_data?: string;
+    image_type?: string;
+    tag?: string;
   }) => {
     return fetchWithAuth('/comments', {
       method: 'POST',
@@ -234,10 +248,20 @@ export const commentsApi = {
     });
   },
 
-  update: async (id: string, data: { content: string }) => {
+  update: async (id: string, data: { 
+    content?: string;
+    resolved?: boolean;
+    tag?: string;
+  }) => {
     return fetchWithAuth(`/comments/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
+    });
+  },
+
+  toggleResolve: async (id: string) => {
+    return fetchWithAuth(`/comments/${id}/resolve`, {
+      method: 'PATCH',
     });
   },
 

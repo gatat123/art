@@ -57,6 +57,13 @@ router.post('/', authenticateToken, async (req, res) => {
        JSON.stringify({ scene_id, tag, has_annotation: !!annotation_data })]
     );
     
+    // WebSocket으로 새 댓글 브로드캐스트
+    if (req.io) {
+      req.io.to(`scene-${scene_id}`).emit('comment-added', {
+        comment: commentWithUser.rows[0]
+      });
+    }
+    
     res.status(201).json(commentWithUser.rows[0]);
   } catch (error) {
     console.error('Create comment error:', error);
@@ -69,6 +76,18 @@ router.put('/:id', authenticateToken, async (req, res) => {
   const { content, resolved, tag } = req.body;
   
   try {
+    // 먼저 scene_id 조회
+    const sceneResult = await db.query(
+      'SELECT scene_id FROM comments WHERE id = $1',
+      [req.params.id]
+    );
+    
+    if (sceneResult.rows.length === 0) {
+      return res.status(404).json({ error: '댓글을 찾을 수 없습니다.' });
+    }
+    
+    const sceneId = sceneResult.rows[0].scene_id;
+    
     let query = 'UPDATE comments SET ';
     const values = [];
     const updates = [];
@@ -111,6 +130,13 @@ router.put('/:id', authenticateToken, async (req, res) => {
       [result.rows[0].id]
     );
     
+    // WebSocket으로 댓글 수정 브로드캐스트
+    if (req.io) {
+      req.io.to(`scene-${sceneId}`).emit('comment-updated', {
+        comment: commentWithUser.rows[0]
+      });
+    }
+    
     res.json(commentWithUser.rows[0]);
   } catch (error) {
     console.error('Update comment error:', error);
@@ -121,9 +147,9 @@ router.put('/:id', authenticateToken, async (req, res) => {
 // 댓글 해결 상태 토글
 router.patch('/:id/resolve', authenticateToken, async (req, res) => {
   try {
-    // 먼저 현재 상태 확인
+    // 먼저 현재 상태와 scene_id 확인
     const currentState = await db.query(
-      'SELECT resolved FROM comments WHERE id = $1',
+      'SELECT resolved, scene_id FROM comments WHERE id = $1',
       [req.params.id]
     );
     
@@ -132,6 +158,7 @@ router.patch('/:id/resolve', authenticateToken, async (req, res) => {
     }
     
     const newResolvedState = !currentState.rows[0].resolved;
+    const sceneId = currentState.rows[0].scene_id;
     
     const result = await db.query(
       `UPDATE comments 
@@ -150,6 +177,15 @@ router.patch('/:id/resolve', authenticateToken, async (req, res) => {
       [result.rows[0].id]
     );
     
+    // WebSocket으로 해결 상태 변경 브로드캐스트
+    if (req.io) {
+      req.io.to(`scene-${sceneId}`).emit('comment-resolved', {
+        commentId: req.params.id,
+        resolved: newResolvedState,
+        resolvedBy: req.user.username
+      });
+    }
+    
     res.json(commentWithUser.rows[0]);
   } catch (error) {
     console.error('Toggle resolve error:', error);
@@ -160,6 +196,18 @@ router.patch('/:id/resolve', authenticateToken, async (req, res) => {
 // 댓글 삭제
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
+    // 먼저 scene_id 조회
+    const sceneResult = await db.query(
+      'SELECT scene_id FROM comments WHERE id = $1',
+      [req.params.id]
+    );
+    
+    if (sceneResult.rows.length === 0) {
+      return res.status(404).json({ error: '댓글을 찾을 수 없습니다.' });
+    }
+    
+    const sceneId = sceneResult.rows[0].scene_id;
+    
     const result = await db.query(
       'DELETE FROM comments WHERE id = $1 AND user_id = $2 RETURNING id',
       [req.params.id, req.user.id]
@@ -167,6 +215,14 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: '댓글을 찾을 수 없거나 삭제 권한이 없습니다.' });
+    }
+    
+    // WebSocket으로 댓글 삭제 브로드캐스트
+    if (req.io) {
+      req.io.to(`scene-${sceneId}`).emit('comment-deleted', {
+        commentId: req.params.id,
+        deletedBy: req.user.username
+      });
     }
     
     res.json({ success: true, message: '댓글이 삭제되었습니다.' });

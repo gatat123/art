@@ -7,6 +7,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
 import rateLimit from 'express-rate-limit';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import { setupSocketHandlers } from './websocket/socketHandlers.js';
 
 // Routes
 import authRouter from './routes/auth.js';
@@ -23,7 +26,19 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+const httpServer = createServer(app);
 const PORT = process.env.PORT || 3001;
+
+// Socket.io 서버 설정
+const io = new Server(httpServer, {
+  cors: {
+    origin: process.env.FRONTEND_URL || 'https://art-production-a9ab.up.railway.app',
+    credentials: true
+  }
+});
+
+// WebSocket 핸들러 설정
+setupSocketHandlers(io);
 
 // 업로드 디렉토리 생성
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -34,7 +49,8 @@ async function ensureDirectories() {
     await fs.mkdir(uploadsDir, { recursive: true });
     console.log('📁 Uploads directory created');
   }
-}ensureDirectories();
+}
+ensureDirectories();
 
 // Rate limiting
 const limiter = rateLimit({
@@ -58,6 +74,12 @@ app.use('/api/', limiter);
 // Static files
 app.use('/uploads', express.static(uploadsDir));
 
+// Socket.io를 req에 추가하여 라우트에서 사용 가능하게 함
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
 // Routes
 app.use('/api/auth', authRouter);
 app.use('/api/studios', studiosRouter);
@@ -72,7 +94,8 @@ app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     message: 'Studio Backend Running',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    websocket: 'enabled'
   });
 });
 
@@ -114,7 +137,9 @@ app.use((req, res) => {
   res.status(404).json({ error: '요청한 리소스를 찾을 수 없습니다.' });
 });
 
-app.listen(PORT, () => {
+// HTTP 서버 시작 (Socket.io와 함께)
+httpServer.listen(PORT, () => {
   console.log(`🚀 서버가 포트 ${PORT}에서 실행중입니다.`);
   console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔌 WebSocket enabled`);
 });

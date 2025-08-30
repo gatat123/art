@@ -5,6 +5,7 @@ import StudioList from './StudioList';
 import ProjectListView from './ProjectListView';
 import SceneView from './SceneView';
 import { ErrorBoundary } from './ErrorBoundary';
+import { studiosApi, projectsApi, scenesApi } from '@/lib/api';
 
 type ViewType = 'login' | 'studios' | 'project' | 'scene';
 
@@ -34,6 +35,7 @@ const MainApp: React.FC = () => {
   const [newComment, setNewComment] = useState('');
   const [comments, setComments] = useState<any[]>([]);
   const [notifications, setNotifications] = useState(0);
+  const [loadingData, setLoadingData] = useState(false);
 
   useEffect(() => {
     if (!loading) {
@@ -52,15 +54,37 @@ const MainApp: React.FC = () => {
     return userRole === 'admin';
   };
 
+  // 초대코드 생성 함수
+  const generateInviteCode = () => {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = '';
+    for (let i = 0; i < 8; i++) {
+      code += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return code;
+  };
+
   const loadStudios = async () => {
-    // 실제 데이터는 API에서 로드하도록 변경 예정
-    // 현재는 빈 배열로 시작
-    setStudios([]);
-    
-    // 어드민용 마스터 스튜디오는 유지
-    if (isAdmin()) {
-      setStudios([
-        {
+    setLoadingData(true);
+    try {
+      const data = await studiosApi.list();
+      
+      const formattedStudios = data.map((studio: any) => ({
+        id: studio.id,
+        name: studio.name,
+        description: studio.description || '',
+        inviteCode: studio.invite_code || generateInviteCode(),
+        memberCount: studio.member_count || 1,
+        projectCount: studio.project_count || 0,
+        owner: studio.creator_name || user?.username || 'Unknown',
+        createdAt: studio.created_at
+      }));
+      
+      setStudios(formattedStudios);
+      
+      // 어드민용 마스터 스튜디오는 별도로 추가
+      if (isAdmin() && !formattedStudios.some((s: any) => s.id === 1)) {
+        const masterStudio = {
           id: 1,
           name: '마스터 스튜디오',
           description: '프리미엄 프로젝트 전용',
@@ -69,8 +93,28 @@ const MainApp: React.FC = () => {
           projectCount: 0,
           owner: 'HSG202',
           createdAt: new Date().toISOString().split('T')[0]
-        }
-      ]);
+        };
+        setStudios([masterStudio, ...formattedStudios]);
+      }
+    } catch (error) {
+      console.error('스튜디오 로드 실패:', error);
+      // 오류 발생 시 어드민용 마스터 스튜디오만 표시
+      if (isAdmin()) {
+        setStudios([
+          {
+            id: 1,
+            name: '마스터 스튜디오',
+            description: '프리미엄 프로젝트 전용',
+            inviteCode: 'MASTER00',
+            memberCount: 0,
+            projectCount: 0,
+            owner: 'HSG202',
+            createdAt: new Date().toISOString().split('T')[0]
+          }
+        ]);
+      }
+    } finally {
+      setLoadingData(false);
     }
   };
 
@@ -107,43 +151,145 @@ const MainApp: React.FC = () => {
     loadProjects(studio.id);
   };
 
-  const loadProjects = (studioId: number) => {
-    // 실제 데이터는 API에서 로드하도록 변경 예정
-    // 현재는 빈 배열로 시작
-    setProjects([]);
+  const loadProjects = async (studioId: number) => {
+    setLoadingData(true);
+    try {
+      const data = await projectsApi.list(studioId.toString());
+      setProjects(data.map((project: any) => ({
+        id: project.id,
+        channelId: project.studio_id || studioId,
+        title: project.title,
+        episode: `EP${project.id}`,
+        status: project.status || 'waiting_sketch',
+        progress: 0,
+        dueDate: project.deadline || '',
+        assignee: project.creator_name || '',
+        lastUpdated: project.updated_at || project.created_at,
+        totalScenes: project.scene_count || 0,
+        completedScenes: 0,
+        author: project.creator_name || '',
+        artist: '',
+        createdAt: project.created_at
+      })));
+    } catch (error) {
+      console.error('프로젝트 로드 실패:', error);
+      setProjects([]);
+    } finally {
+      setLoadingData(false);
+    }
   };
 
-  const handleSelectProject = (project: any) => {
+  const handleSelectProject = async (project: any) => {
     setSelectedProject(project);
-    loadStoryboard(project.id);
+    await loadStoryboard(project.id);
     setCurrentView('scene');
   };
 
-  const loadStoryboard = (projectId: number) => {
-    // 실제 데이터는 API에서 로드하도록 변경 예정
-    // 기본 구조만 유지
-    setStoryboard({
-      id: projectId,
-      title: selectedProject?.title || '새 프로젝트',
-      scenes: [
-        {
-          id: 1,
+  const loadStoryboard = async (projectId: number) => {
+    setLoadingData(true);
+    try {
+      const scenes = await scenesApi.list(projectId.toString());
+      
+      if (scenes.length === 0) {
+        // 씬이 없으면 기본 씬 생성
+        const newScene = await scenesApi.create({
+          project_id: projectId.toString(),
+          scene_number: 1,
           title: '씬 1',
           description: '',
-          narration: '',
-          sound: '',
-          status: 'draft_pending',
-          sketchUrl: null,
-          artworkUrl: null
+          dialogue: '',
+          action_description: ''
+        });
+        
+        setStoryboard({
+          id: projectId,
+          title: selectedProject?.title || '새 프로젝트',
+          scenes: [{
+            id: newScene.id,
+            title: newScene.title,
+            description: newScene.description || '',
+            narration: newScene.dialogue || '',
+            sound: newScene.action_description || '',
+            status: newScene.status || 'draft_pending',
+            sketchUrl: null,
+            artworkUrl: null,
+            images: [],
+            comments: []
+          }]
+        });
+      } else {
+        // 기존 씬들 로드
+        const formattedScenes = await Promise.all(scenes.map(async (scene: any) => {
+          try {
+            const sceneDetail = await scenesApi.get(scene.id.toString());
+            return {
+              id: scene.id,
+              title: scene.title,
+              description: scene.description || '',
+              narration: scene.dialogue || '',
+              sound: scene.action_description || '',
+              status: scene.status || 'draft_pending',
+              sketchUrl: sceneDetail.images?.find((img: any) => img.type === 'draft')?.file_path || null,
+              artworkUrl: sceneDetail.images?.find((img: any) => img.type === 'artwork')?.file_path || null,
+              images: sceneDetail.images || [],
+              comments: sceneDetail.comments || []
+            };
+          } catch (error) {
+            console.error(`씬 ${scene.id} 상세 정보 로드 실패:`, error);
+            return {
+              id: scene.id,
+              title: scene.title,
+              description: scene.description || '',
+              narration: scene.dialogue || '',
+              sound: scene.action_description || '',
+              status: scene.status || 'draft_pending',
+              sketchUrl: null,
+              artworkUrl: null,
+              images: [],
+              comments: []
+            };
+          }
+        }));
+        
+        setStoryboard({
+          id: projectId,
+          title: selectedProject?.title || '새 프로젝트',
+          scenes: formattedScenes
+        });
+        
+        // 현재 씬의 댓글 설정
+        if (formattedScenes[currentScene]) {
+          setComments(formattedScenes[currentScene].comments);
         }
-      ]
-    });
-
-    // 빈 댓글 배열로 시작
-    setComments([]);
+      }
+    } catch (error) {
+      console.error('스토리보드 로드 실패:', error);
+      // 오류 발생 시 기본 구조 설정
+      setStoryboard({
+        id: projectId,
+        title: selectedProject?.title || '새 프로젝트',
+        scenes: [
+          {
+            id: 1,
+            title: '씬 1',
+            description: '',
+            narration: '',
+            sound: '',
+            status: 'draft_pending',
+            sketchUrl: null,
+            artworkUrl: null,
+            images: [],
+            comments: []
+          }
+        ]
+      });
+      setComments([]);
+    } finally {
+      setLoadingData(false);
+    }
   };
 
-  if (loading) {
+  if (loading || loadingData) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-xl">Loading...</div>
@@ -225,7 +371,7 @@ const MainApp: React.FC = () => {
                 onSceneCountUpdate={(projectId: number, newCount: number) => {
                   // 프로젝트 목록에서 씬 카운트 업데이트
                   setProjects(projects.map(p => 
-                    p.id === projectId ? { ...p, sceneCount: newCount } : p
+                    p.id === projectId ? { ...p, totalScenes: newCount } : p
                   ));
                 }}
               />

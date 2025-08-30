@@ -155,6 +155,34 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
     setPropsReplyText(replyText);
   }, [replyText, setPropsReplyText]);
 
+  // 씬이 변경될 때 댓글 로드
+  useEffect(() => {
+    const loadComments = async () => {
+      const scene = storyboard?.scenes?.[currentScene];
+      if (scene?.id) {
+        try {
+          const data = await commentsApi.list(scene.id.toString());
+          setComments(data.map((comment: any) => ({
+            ...comment,
+            user: comment.username || '알 수 없음',
+            avatar: comment.avatar_url,
+            time: new Date(comment.created_at).toLocaleString('ko-KR'),
+            imageType: comment.image_type,
+            annotationData: comment.annotation_data,
+            tag: comment.tag,
+            isResolved: comment.resolved,
+            replies: []
+          })));
+        } catch (error) {
+          console.error('댓글 로드 실패:', error);
+          // 백엔드 연결 실패 시 로컬 댓글 유지
+        }
+      }
+    };
+
+    loadComments();
+  }, [currentScene, storyboard?.scenes]);
+
   // 메모이제이션된 현재 씬 데이터
   const currentSceneData = useMemo(() => {
     return storyboard?.scenes?.[currentScene] || {
@@ -381,44 +409,98 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
     }
   }, []);
 
-  const handleAddComment = useCallback(() => {
+  const handleAddComment = useCallback(async () => {
     if (newComment.trim() || pendingSketch) {
-      const comment = {
-        sceneId: currentScene,
-        author: '나',
-        avatar: 'ME',
-        content: newComment,
-        type: selectedCommentType,
-        resolved: false,
-        replies: [],
-        sketchData: pendingSketch,
-        imageType: pendingSketch ? imageViewMode : null
-      };
-      addComment(comment);
-      
-      // 스케치 데이터가 있으면 실제 이미지로 저장
-      if (pendingSketch && imageViewMode) {
-        const updatedScenes = [...(storyboard.scenes || [])];
-        if (imageViewMode === 'sketch') {
-          updatedScenes[currentScene] = {
-            ...updatedScenes[currentScene],
-            sketchUrl: pendingSketch
+      try {
+        const scene = storyboard.scenes[currentScene];
+        
+        if (scene?.id) {
+          // 백엔드 API로 댓글 생성
+          const response = await commentsApi.create({
+            scene_id: scene.id.toString(),
+            content: newComment,
+            parent_id: undefined,
+            annotation_data: pendingSketch,
+            image_type: pendingSketch ? imageViewMode : null,
+            tag: selectedCommentType === 'revision' ? 'revision' : selectedCommentType === 'annotation' ? 'annotation' : null
+          });
+          
+          const comment = {
+            id: response.id,
+            sceneId: currentScene,
+            user: response.username || '나',
+            avatar: response.avatar_url || 'ME',
+            content: response.content,
+            type: selectedCommentType,
+            tag: response.tag,
+            isResolved: response.resolved || false,
+            replies: [],
+            annotationData: response.annotation_data,
+            imageType: response.image_type,
+            time: new Date(response.created_at).toLocaleString('ko-KR'),
+            created_at: response.created_at
           };
-          addActivity('sketch', '초안에 스케치가 추가되었습니다');
+          
+          addComment(comment);
         } else {
-          updatedScenes[currentScene] = {
-            ...updatedScenes[currentScene],
-            artworkUrl: pendingSketch
+          // 로컬 모드
+          const comment = {
+            id: Date.now(),
+            sceneId: currentScene,
+            author: '나',
+            avatar: 'ME',
+            content: newComment,
+            type: selectedCommentType,
+            resolved: false,
+            replies: [],
+            sketchData: pendingSketch,
+            imageType: pendingSketch ? imageViewMode : null
           };
-          addActivity('artwork', '아트워크에 스케치가 추가되었습니다');
+          addComment(comment);
         }
-        setStoryboard({ ...storyboard, scenes: updatedScenes });
+        
+        // 스케치 데이터가 있으면 실제 이미지로 저장
+        if (pendingSketch && imageViewMode) {
+          const updatedScenes = [...(storyboard.scenes || [])];
+          if (imageViewMode === 'sketch') {
+            updatedScenes[currentScene] = {
+              ...updatedScenes[currentScene],
+              sketchUrl: pendingSketch
+            };
+            addActivity('sketch', '초안에 스케치가 추가되었습니다');
+          } else {
+            updatedScenes[currentScene] = {
+              ...updatedScenes[currentScene],
+              artworkUrl: pendingSketch
+            };
+            addActivity('artwork', '아트워크에 스케치가 추가되었습니다');
+          }
+          setStoryboard({ ...storyboard, scenes: updatedScenes });
+        }
+        
+        addActivity('comment', `${selectedCommentType === 'revision' ? '수정요청' : selectedCommentType === 'annotation' ? '주석' : '댓글'}이 추가되었습니다`);
+        setNewComment('');
+        setPendingSketch(null);
+        setSelectedCommentType('comment'); // 기본값으로 리셋
+      } catch (error) {
+        console.error('댓글 추가 실패:', error);
+        // 오류 발생 시 로컬 모드로 폴백
+        const comment = {
+          id: Date.now(),
+          sceneId: currentScene,
+          author: '나',
+          avatar: 'ME',
+          content: newComment,
+          type: selectedCommentType,
+          resolved: false,
+          replies: [],
+          sketchData: pendingSketch,
+          imageType: pendingSketch ? imageViewMode : null
+        };
+        addComment(comment);
+        setNewComment('');
+        setPendingSketch(null);
       }
-      
-      addActivity('comment', `${selectedCommentType === 'revision' ? '수정요청' : selectedCommentType === 'annotation' ? '주석' : '댓글'}이 추가되었습니다`);
-      setNewComment('');
-      setPendingSketch(null);
-      setSelectedCommentType('comment'); // 기본값으로 리셋
     }
   }, [newComment, pendingSketch, currentScene, selectedCommentType, imageViewMode, addComment, setNewComment, setPendingSketch, storyboard, setStoryboard, addActivity]);
 

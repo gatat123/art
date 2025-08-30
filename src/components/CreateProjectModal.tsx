@@ -42,36 +42,54 @@ const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
 
     try {
       // 백엔드 API로 프로젝트 생성
-      const token = localStorage.getItem('token');
       const studioId = parseInt(localStorage.getItem('currentStudioId') || '1');
       
-      if (token && !token.startsWith('demo-')) {
-        const response = await projectsApi.createProject({
-          studio_id: studioId,
+      try {
+        const response = await projectsApi.create({
+          studio_id: studioId.toString(),
           title: projectData.title,
           description: projectData.description,
-          deadline: projectData.dueDate || undefined,
-          episode: projectData.episode,
-          artist: projectData.artist,
-          totalScenes: projectData.totalScenes
+          deadline: projectData.dueDate || undefined
         });
         
-        onCreate(response);
-      } else {
-        // 데모 모드: localStorage 사용
-        onCreate({
-          ...projectData,
-          id: Date.now(),
-          studio_id: studioId,
-          status: 'in_progress',
+        const formattedProject = {
+          id: response.id,
+          channelId: response.studio_id || studioId,
+          title: response.title,
+          episode: `EP${response.id}`,
+          status: response.status || 'waiting_sketch',
           progress: 0,
-          assignee: projectData.artist,
-          lastUpdated: '방금',
+          dueDate: response.deadline || '',
+          assignee: projectData.artist || response.creator_name || '',
+          lastUpdated: response.updated_at || response.created_at,
+          totalScenes: projectData.totalScenes || 0,
           completedScenes: 0,
-          author: '나',
-          createdAt: new Date().toISOString().split('T')[0],
-          scenes: []
-        });
+          author: response.creator_name || '',
+          artist: projectData.artist || '',
+          createdAt: response.created_at,
+          description: response.description || ''
+        };
+        
+        onCreate(formattedProject);
+      } catch (error: any) {
+        // 백엔드 연결 실패 시 로컬 모드로 폴백
+        if (error.status === 401 || error.message.includes('Network')) {
+          onCreate({
+            ...projectData,
+            id: Date.now(),
+            channelId: studioId,
+            status: 'waiting_sketch',
+            progress: 0,
+            assignee: projectData.artist,
+            lastUpdated: '방금',
+            completedScenes: 0,
+            author: '나',
+            createdAt: new Date().toISOString().split('T')[0],
+            scenes: []
+          });
+        } else {
+          throw error;
+        }
       }
       
       setProjectData({

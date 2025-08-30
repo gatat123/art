@@ -3,12 +3,13 @@ import {
   Upload, MessageCircle, Check, ChevronLeft, ChevronRight, 
   MoreHorizontal, Send, Image, Download, Eye, AlertCircle, CheckCircle, 
   ArrowLeft, Share2, Bell, Edit2, X, Reply, Brush, Plus, CheckCheck, Tag,
-  History, Clock, ChevronDown, Camera, Expand
+  History, Clock, ChevronDown, Camera, Expand, ZoomIn
 } from 'lucide-react';
 import SketchCanvas from './SketchCanvas';
 import AnnotationCanvas from './AnnotationCanvas';
 import { CommentSection } from './CommentSection';
 import { useComments } from '@/hooks/useComments';
+import { ImageZoomViewer } from './ImageZoomViewer';
 
 type ViewType = 'login' | 'studios' | 'project' | 'scene';
 type ImageViewMode = 'sketch' | 'artwork' | null;
@@ -704,7 +705,7 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                         className="absolute top-4 left-20 p-2 bg-white bg-opacity-90 hover:bg-opacity-100 text-black rounded-lg shadow-md z-10"
                         title="이미지 확대"
                       >
-                        <Expand size={16} />
+                        <ZoomIn size={16} />
                       </button>
                     )}
                     {currentSceneData.sketchUrl ? (
@@ -734,7 +735,7 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                         className="absolute top-4 right-24 p-2 bg-white bg-opacity-90 hover:bg-opacity-100 text-black rounded-lg shadow-md z-10"
                         title="이미지 확대"
                       >
-                        <Expand size={16} />
+                        <ZoomIn size={16} />
                       </button>
                     )}
                     {currentSceneData.artworkUrl ? (
@@ -806,7 +807,7 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                             className="absolute top-4 right-24 p-2 bg-white bg-opacity-90 hover:bg-opacity-100 text-black rounded-lg shadow-md"
                             title="이미지 확대"
                           >
-                            <Expand size={16} />
+                            <ZoomIn size={16} />
                           </button>
                         </div>
                       )
@@ -881,7 +882,7 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                             className="absolute top-4 right-24 p-2 bg-white bg-opacity-90 hover:bg-opacity-100 text-black rounded-lg shadow-md"
                             title="이미지 확대"
                           >
-                            <Expand size={16} />
+                            <ZoomIn size={16} />
                           </button>
                         </div>
                       )
@@ -1203,38 +1204,17 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
         </div>
       )}
 
-      {/* 이미지 확대 모달 */}
-      {showZoomModal && zoomImageUrl && (
-        <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
-          <div className="relative w-full h-full p-8">
-            {/* 닫기 버튼 */}
-            <button
-              onClick={() => {
-                setShowZoomModal(false);
-                setZoomImageUrl(null);
-                setZoomImageType(null);
-              }}
-              className="absolute top-4 right-4 p-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full text-white transition-colors"
-              title="닫기"
-            >
-              <X size={24} />
-            </button>
-            
-            {/* 이미지 타입 표시 */}
-            <div className="absolute top-4 left-4 bg-black bg-opacity-50 text-white px-3 py-1 rounded">
-              {zoomImageType === 'sketch' ? '초안' : '아트워크'}
-            </div>
-            
-            {/* 확대된 이미지 */}
-            <div className="w-full h-full flex items-center justify-center">
-              <img
-                src={zoomImageUrl}
-                alt={zoomImageType === 'sketch' ? '초안 확대' : '아트워크 확대'}
-                className="max-w-full max-h-full object-contain"
-              />
-            </div>
-          </div>
-        </div>
+      {/* 이미지 확대 뷰어 */}
+      {showZoomModal && zoomImageUrl && zoomImageType && (
+        <ImageZoomViewer
+          imageUrl={zoomImageUrl}
+          imageType={zoomImageType}
+          onClose={() => {
+            setShowZoomModal(false);
+            setZoomImageUrl(null);
+            setZoomImageType(null);
+          }}
+        />
       )}
 
     </div>

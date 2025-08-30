@@ -3,7 +3,7 @@ import {
   Upload, MessageCircle, Check, ChevronLeft, ChevronRight, 
   MoreHorizontal, Send, Image, Download, Eye, AlertCircle, CheckCircle, 
   ArrowLeft, Share2, Bell, Edit2, X, Reply, Brush, Plus, CheckCheck, Tag,
-  History, Clock, ChevronDown, Camera
+  History, Clock, ChevronDown, Camera, Expand
 } from 'lucide-react';
 import SketchCanvas from './SketchCanvas';
 import AnnotationCanvas from './AnnotationCanvas';
@@ -91,6 +91,11 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
     narration: '',
     sound: ''
   });
+  
+  // 이미지 확대 관련 상태
+  const [showZoomModal, setShowZoomModal] = useState(false);
+  const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
+  const [zoomImageType, setZoomImageType] = useState<'sketch' | 'artwork' | null>(null);
   const [showSketchOverlay, setShowSketchOverlay] = useState<number | null>(null);
   const [showAnnotationOverlay, setShowAnnotationOverlay] = useState<number | null>(null);
   const [activityLog, setActivityLog] = useState<Array<{id: number; type: string; user: string; time: string; content: string}>>([]);
@@ -284,6 +289,15 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
       reader.readAsDataURL(file);
     }
   }, [storyboard, currentScene, setStoryboard, versions, imageLoadError, addActivity]);
+
+  // 이미지 확대 핸들러
+  const handleImageZoom = useCallback((imageUrl: string | null, imageType: 'sketch' | 'artwork') => {
+    if (imageUrl) {
+      setZoomImageUrl(imageUrl);
+      setZoomImageType(imageType);
+      setShowZoomModal(true);
+    }
+  }, []);
 
   const handleAddComment = useCallback(() => {
     if (newComment.trim() || pendingSketch) {
@@ -684,6 +698,15 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                     <div className="absolute top-4 left-4 bg-black text-white px-2 py-1 rounded text-sm z-10">
                       초안
                     </div>
+                    {currentSceneData.sketchUrl && (
+                      <button
+                        onClick={() => handleImageZoom(currentSceneData.sketchUrl, 'sketch')}
+                        className="absolute top-4 left-20 p-2 bg-white bg-opacity-90 hover:bg-opacity-100 text-black rounded-lg shadow-md z-10"
+                        title="이미지 확대"
+                      >
+                        <Expand size={16} />
+                      </button>
+                    )}
                     {currentSceneData.sketchUrl ? (
                       <img 
                         src={currentSceneData.sketchUrl} 
@@ -705,6 +728,15 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                     <div className="absolute top-4 right-4 bg-black text-white px-2 py-1 rounded text-sm z-10">
                       아트워크
                     </div>
+                    {currentSceneData.artworkUrl && (
+                      <button
+                        onClick={() => handleImageZoom(currentSceneData.artworkUrl, 'artwork')}
+                        className="absolute top-4 right-24 p-2 bg-white bg-opacity-90 hover:bg-opacity-100 text-black rounded-lg shadow-md z-10"
+                        title="이미지 확대"
+                      >
+                        <Expand size={16} />
+                      </button>
+                    )}
                     {currentSceneData.artworkUrl ? (
                       <img 
                         src={currentSceneData.artworkUrl} 
@@ -767,6 +799,14 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                           >
                             <Upload size={16} />
                             <span>재업로드</span>
+                          </button>
+                          {/* 확대 버튼 */}
+                          <button
+                            onClick={() => handleImageZoom(currentSceneData.sketchUrl, 'sketch')}
+                            className="absolute top-4 right-24 p-2 bg-white bg-opacity-90 hover:bg-opacity-100 text-black rounded-lg shadow-md"
+                            title="이미지 확대"
+                          >
+                            <Expand size={16} />
                           </button>
                         </div>
                       )
@@ -834,6 +874,14 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
                           >
                             <Upload size={16} />
                             <span>재업로드</span>
+                          </button>
+                          {/* 확대 버튼 */}
+                          <button
+                            onClick={() => handleImageZoom(currentSceneData.artworkUrl, 'artwork')}
+                            className="absolute top-4 right-24 p-2 bg-white bg-opacity-90 hover:bg-opacity-100 text-black rounded-lg shadow-md"
+                            title="이미지 확대"
+                          >
+                            <Expand size={16} />
                           </button>
                         </div>
                       )
@@ -1150,6 +1198,40 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
               >
                 추가
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 이미지 확대 모달 */}
+      {showZoomModal && zoomImageUrl && (
+        <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
+          <div className="relative w-full h-full p-8">
+            {/* 닫기 버튼 */}
+            <button
+              onClick={() => {
+                setShowZoomModal(false);
+                setZoomImageUrl(null);
+                setZoomImageType(null);
+              }}
+              className="absolute top-4 right-4 p-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full text-white transition-colors"
+              title="닫기"
+            >
+              <X size={24} />
+            </button>
+            
+            {/* 이미지 타입 표시 */}
+            <div className="absolute top-4 left-4 bg-black bg-opacity-50 text-white px-3 py-1 rounded">
+              {zoomImageType === 'sketch' ? '초안' : '아트워크'}
+            </div>
+            
+            {/* 확대된 이미지 */}
+            <div className="w-full h-full flex items-center justify-center">
+              <img
+                src={zoomImageUrl}
+                alt={zoomImageType === 'sketch' ? '초안 확대' : '아트워크 확대'}
+                className="max-w-full max-h-full object-contain"
+              />
             </div>
           </div>
         </div>

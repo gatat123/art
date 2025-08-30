@@ -22,7 +22,7 @@ const MainApp: React.FC = () => {
   const [showCreateProject, setShowCreateProject] = useState(false);
   
   // UI state
-  const [activeTab, setActiveTab] = useState('storyboards');
+  const [activeTab, setActiveTab] = useState('comments');
   const [showSketch, setShowSketch] = useState(true);
   const [showArtwork, setShowArtwork] = useState(false);
   const [compareMode, setCompareMode] = useState(false);

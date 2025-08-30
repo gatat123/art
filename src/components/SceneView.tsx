@@ -10,6 +10,7 @@ import AnnotationCanvas from './AnnotationCanvas';
 import { CommentSection } from './CommentSection';
 import { useComments } from '@/hooks/useComments';
 import { ImageZoomViewer } from './ImageZoomViewer';
+import { scenesApi, imagesApi, commentsApi } from '@/lib/api';
 
 type ViewType = 'login' | 'studios' | 'project' | 'scene';
 type ImageViewMode = 'sketch' | 'artwork' | null;
@@ -229,65 +230,145 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
   }, [storyboard, setStoryboard, addActivity]);
 
   // 파일 업로드 핸들러
-  const handleSketchUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSketchUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const url = event.target?.result as string;
-        const updatedScenes = [...(storyboard.scenes || [])];
-        updatedScenes[currentScene] = {
-          ...updatedScenes[currentScene],
-          sketchUrl: url
-        };
-        setStoryboard({ ...storyboard, scenes: updatedScenes });
-        setImageLoadError({ ...imageLoadError, sketch: false });
+      try {
+        const token = localStorage.getItem('token');
+        const scene = storyboard.scenes[currentScene];
         
-        // 버전 히스토리에 추가
-        const newVersion: Version = {
-          id: `v${versions.length + 1}`,
-          type: 'sketch',
-          url: url,
-          timestamp: new Date().toLocaleString('ko-KR'),
-          author: '나',
-          message: '초안 업로드',
-          isCurrent: true
-        };
-        setVersions([...versions.map(v => ({ ...v, isCurrent: false })), newVersion]);
-        addActivity('upload', '초안 이미지가 업로드되었습니다');
-      };
-      reader.readAsDataURL(file);
+        if (token && !token.startsWith('demo-') && scene?.id) {
+          // 백엔드 API로 이미지 업로드
+          const formData = new FormData();
+          formData.append('image', file);
+          formData.append('type', 'draft');
+          formData.append('scene_id', scene.id.toString());
+          
+          const response = await imagesApi.uploadImage(formData);
+          
+          const updatedScenes = [...(storyboard.scenes || [])];
+          updatedScenes[currentScene] = {
+            ...updatedScenes[currentScene],
+            sketchUrl: response.image.file_path
+          };
+          setStoryboard({ ...storyboard, scenes: updatedScenes });
+          setImageLoadError({ ...imageLoadError, sketch: false });
+          
+          // 버전 히스토리에 추가
+          const newVersion: Version = {
+            id: `v${versions.length + 1}`,
+            type: 'sketch',
+            url: response.image.file_path,
+            timestamp: new Date().toLocaleString('ko-KR'),
+            author: '나',
+            message: '초안 업로드',
+            isCurrent: true
+          };
+          setVersions([...versions.map(v => ({ ...v, isCurrent: false })), newVersion]);
+          addActivity('upload', '초안 이미지가 업로드되었습니다');
+        } else {
+          // 데모 모드: FileReader 사용
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const url = event.target?.result as string;
+            const updatedScenes = [...(storyboard.scenes || [])];
+            updatedScenes[currentScene] = {
+              ...updatedScenes[currentScene],
+              sketchUrl: url
+            };
+            setStoryboard({ ...storyboard, scenes: updatedScenes });
+            setImageLoadError({ ...imageLoadError, sketch: false });
+            
+            // 버전 히스토리에 추가
+            const newVersion: Version = {
+              id: `v${versions.length + 1}`,
+              type: 'sketch',
+              url: url,
+              timestamp: new Date().toLocaleString('ko-KR'),
+              author: '나',
+              message: '초안 업로드',
+              isCurrent: true
+            };
+            setVersions([...versions.map(v => ({ ...v, isCurrent: false })), newVersion]);
+            addActivity('upload', '초안 이미지가 업로드되었습니다');
+          };
+          reader.readAsDataURL(file);
+        }
+      } catch (error) {
+        console.error('이미지 업로드 실패:', error);
+        alert('이미지 업로드에 실패했습니다.');
+      }
     }
   }, [storyboard, currentScene, setStoryboard, versions, imageLoadError, addActivity]);
 
-  const handleArtworkUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleArtworkUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const url = event.target?.result as string;
-        const updatedScenes = [...(storyboard.scenes || [])];
-        updatedScenes[currentScene] = {
-          ...updatedScenes[currentScene],
-          artworkUrl: url
-        };
-        setStoryboard({ ...storyboard, scenes: updatedScenes });
-        setImageLoadError({ ...imageLoadError, artwork: false });
+      try {
+        const token = localStorage.getItem('token');
+        const scene = storyboard.scenes[currentScene];
         
-        // 버전 히스토리에 추가
-        const newVersion: Version = {
-          id: `v${versions.length + 1}`,
-          type: 'artwork',
-          url: url,
-          timestamp: new Date().toLocaleString('ko-KR'),
-          author: '나',
-          message: '아트워크 업로드',
-          isCurrent: true
-        };
-        setVersions([...versions.map(v => ({ ...v, isCurrent: false })), newVersion]);
-        addActivity('upload', '아트워크 이미지가 업로드되었습니다');
-      };
-      reader.readAsDataURL(file);
+        if (token && !token.startsWith('demo-') && scene?.id) {
+          // 백엔드 API로 이미지 업로드
+          const formData = new FormData();
+          formData.append('image', file);
+          formData.append('type', 'artwork');
+          formData.append('scene_id', scene.id.toString());
+          
+          const response = await imagesApi.uploadImage(formData);
+          
+          const updatedScenes = [...(storyboard.scenes || [])];
+          updatedScenes[currentScene] = {
+            ...updatedScenes[currentScene],
+            artworkUrl: response.image.file_path
+          };
+          setStoryboard({ ...storyboard, scenes: updatedScenes });
+          setImageLoadError({ ...imageLoadError, artwork: false });
+          
+          // 버전 히스토리에 추가
+          const newVersion: Version = {
+            id: `v${versions.length + 1}`,
+            type: 'artwork',
+            url: response.image.file_path,
+            timestamp: new Date().toLocaleString('ko-KR'),
+            author: '나',
+            message: '아트워크 업로드',
+            isCurrent: true
+          };
+          setVersions([...versions.map(v => ({ ...v, isCurrent: false })), newVersion]);
+          addActivity('upload', '아트워크 이미지가 업로드되었습니다');
+        } else {
+          // 데모 모드: FileReader 사용
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const url = event.target?.result as string;
+            const updatedScenes = [...(storyboard.scenes || [])];
+            updatedScenes[currentScene] = {
+              ...updatedScenes[currentScene],
+              artworkUrl: url
+            };
+            setStoryboard({ ...storyboard, scenes: updatedScenes });
+            setImageLoadError({ ...imageLoadError, artwork: false });
+            
+            // 버전 히스토리에 추가
+            const newVersion: Version = {
+              id: `v${versions.length + 1}`,
+              type: 'artwork',
+              url: url,
+              timestamp: new Date().toLocaleString('ko-KR'),
+              author: '나',
+              message: '아트워크 업로드',
+              isCurrent: true
+            };
+            setVersions([...versions.map(v => ({ ...v, isCurrent: false })), newVersion]);
+            addActivity('upload', '아트워크 이미지가 업로드되었습니다');
+          };
+          reader.readAsDataURL(file);
+        }
+      } catch (error) {
+        console.error('이미지 업로드 실패:', error);
+        alert('이미지 업로드에 실패했습니다.');
+      }
     }
   }, [storyboard, currentScene, setStoryboard, versions, imageLoadError, addActivity]);
 
@@ -392,32 +473,68 @@ const SceneView: React.FC<SceneViewProps> = (props) => {
     setShowVersionHistory(false);
   }, [storyboard, currentScene, setStoryboard]);
 
-  const handleAddScene = useCallback(() => {
+  const handleAddScene = useCallback(async () => {
     if (newSceneTitle.trim()) {
-      const newScene = {
-        id: storyboard.scenes.length + 1,
-        title: newSceneTitle,
-        description: newSceneDescription || '',
-        narration: '',
-        sound: '',
-        status: 'draft_pending',
-        sketchUrl: null,
-        artworkUrl: null,
-        feedback: []
-      };
-      const updatedScenes = [...(storyboard.scenes || []), newScene];
-      setStoryboard({
-        ...storyboard,
-        scenes: updatedScenes
-      });
-      setCurrentScene(updatedScenes.length - 1);
-      setNewSceneTitle('');
-      setNewSceneDescription('');
-      setShowAddSceneModal(false);
-      
-      // 프로젝트의 씬 카운트 업데이트
-      if (onSceneCountUpdate && storyboard.id) {
-        onSceneCountUpdate(storyboard.id, updatedScenes.length);
+      try {
+        const token = localStorage.getItem('token');
+        const projectId = storyboard.id;
+        
+        if (token && !token.startsWith('demo-') && projectId) {
+          // 백엔드 API 호출
+          const newScene = await scenesApi.createScene({
+            project_id: projectId,
+            scene_number: storyboard.scenes.length + 1,
+            title: newSceneTitle,
+            description: newSceneDescription || '',
+            dialogue: '',
+            action_description: ''
+          });
+          
+          const updatedScenes = [...(storyboard.scenes || []), {
+            ...newScene,
+            status: 'draft_pending',
+            sketchUrl: null,
+            artworkUrl: null,
+            feedback: []
+          }];
+          
+          setStoryboard({
+            ...storyboard,
+            scenes: updatedScenes
+          });
+          setCurrentScene(updatedScenes.length - 1);
+        } else {
+          // 데모 모드: localStorage 사용
+          const newScene = {
+            id: storyboard.scenes.length + 1,
+            title: newSceneTitle,
+            description: newSceneDescription || '',
+            narration: '',
+            sound: '',
+            status: 'draft_pending',
+            sketchUrl: null,
+            artworkUrl: null,
+            feedback: []
+          };
+          const updatedScenes = [...(storyboard.scenes || []), newScene];
+          setStoryboard({
+            ...storyboard,
+            scenes: updatedScenes
+          });
+          setCurrentScene(updatedScenes.length - 1);
+        }
+        
+        setNewSceneTitle('');
+        setNewSceneDescription('');
+        setShowAddSceneModal(false);
+        
+        // 프로젝트의 씬 카운트 업데이트
+        if (onSceneCountUpdate && storyboard.id) {
+          onSceneCountUpdate(storyboard.id, storyboard.scenes.length + 1);
+        }
+      } catch (error) {
+        console.error('씬 추가 실패:', error);
+        alert('씬 추가에 실패했습니다.');
       }
     }
   }, [newSceneTitle, newSceneDescription, storyboard, setStoryboard, setCurrentScene, onSceneCountUpdate]);

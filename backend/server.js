@@ -10,12 +10,12 @@ import rateLimit from 'express-rate-limit';
 
 // Routes
 import authRouter from './routes/auth.js';
-// import studiosRouter from './routes/studios.js';
-// import projectsRouter from './routes/projects.js';
-// import scenesRouter from './routes/scenes.js';
-// import imagesRouter from './routes/images.js';
-// import commentsRouter from './routes/comments.js';
-// import usersRouter from './routes/users.js';
+import studiosRouter from './routes/studios.js';
+import projectsRouter from './routes/projects.js';
+import scenesRouter from './routes/scenes.js';
+import imagesRouter from './routes/images.js';
+import commentsRouter from './routes/comments.js';
+import usersRouter from './routes/users.js';
 
 dotenv.config();
 
@@ -60,12 +60,12 @@ app.use('/uploads', express.static(uploadsDir));
 
 // Routes
 app.use('/api/auth', authRouter);
-// app.use('/api/studios', studiosRouter);
-// app.use('/api/projects', projectsRouter);
-// app.use('/api/scenes', scenesRouter);
-// app.use('/api/images', imagesRouter);
-// app.use('/api/comments', commentsRouter);
-// app.use('/api/users', usersRouter);
+app.use('/api/studios', studiosRouter);
+app.use('/api/projects', projectsRouter);
+app.use('/api/scenes', scenesRouter);
+app.use('/api/images', imagesRouter);
+app.use('/api/comments', commentsRouter);
+app.use('/api/users', usersRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

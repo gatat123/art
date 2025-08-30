@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Plus, Users, Briefcase, Settings, LogOut, Grid, 
   List, Search, MoreVertical, Copy, RefreshCw, Check
 } from 'lucide-react';
+import { studiosApi } from '@/lib/api';
 
 type ViewType = 'login' | 'studios' | 'project' | 'scene';
 
@@ -47,6 +48,28 @@ const StudioList: React.FC<StudioListProps> = ({
   const userRole = localStorage.getItem('userRole') || 'user';
   const isAdmin = userRole === 'admin';
 
+  // API에서 스튜디오 목록 가져오기
+  useEffect(() => {
+    const fetchStudios = async () => {
+      try {
+        const data = await studiosApi.list();
+        setStudios(data.map((studio: any) => ({
+          ...studio,
+          inviteCode: studio.invite_code || generateInviteCode(),
+          memberCount: studio.member_count || 1,
+          projectCount: studio.project_count || 0,
+          owner: studio.creator_name || username,
+          createdAt: studio.created_at
+        })));
+      } catch (error) {
+        console.error('스튜디오 목록 가져오기 실패:', error);
+        // 백엔드 연결 실패 시 기존 로컬 데이터 유지
+      }
+    };
+
+    fetchStudios();
+  }, [setStudios, username]);
+
   // 초대코드 생성 함수
   const generateInviteCode = () => {
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -75,22 +98,47 @@ const StudioList: React.FC<StudioListProps> = ({
     return newCode;
   };
 
-  const handleCreateStudio = () => {
+  const handleCreateStudio = async () => {
     if (newStudioName.trim()) {
-      const newStudio: Studio = {
-        id: Date.now(),
-        name: newStudioName,
-        description: newStudioDescription,
-        inviteCode: generateInviteCode(),
-        memberCount: 1,
-        projectCount: 0,
-        owner: username,
-        createdAt: new Date().toISOString().split('T')[0]
-      };
-      setStudios([...studios, newStudio]);
-      setNewStudioName('');
-      setNewStudioDescription('');
-      setShowCreateModal(false);
+      try {
+        const result = await studiosApi.create({
+          name: newStudioName,
+          description: newStudioDescription
+        });
+        
+        const newStudio: Studio = {
+          id: result.id,
+          name: result.name,
+          description: result.description || '',
+          inviteCode: generateInviteCode(),
+          memberCount: 1,
+          projectCount: 0,
+          owner: username,
+          createdAt: result.created_at || new Date().toISOString().split('T')[0]
+        };
+        
+        setStudios([...studios, newStudio]);
+        setNewStudioName('');
+        setNewStudioDescription('');
+        setShowCreateModal(false);
+      } catch (error) {
+        console.error('스튜디오 생성 실패:', error);
+        // 백엔드 연결 실패 시 로컬에서만 생성
+        const newStudio: Studio = {
+          id: Date.now(),
+          name: newStudioName,
+          description: newStudioDescription,
+          inviteCode: generateInviteCode(),
+          memberCount: 1,
+          projectCount: 0,
+          owner: username,
+          createdAt: new Date().toISOString().split('T')[0]
+        };
+        setStudios([...studios, newStudio]);
+        setNewStudioName('');
+        setNewStudioDescription('');
+        setShowCreateModal(false);
+      }
     }
   };
 

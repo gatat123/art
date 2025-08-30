@@ -60,12 +60,249 @@
         "dependencies": [],
         "status": "pending",
         "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "Setup Backend Project Structure",
+        "description": "Initialize the backend project structure by integrating studio-backend-complete.js into the current project.",
+        "details": "1. Create a new Express.js application structure\n2. Set up folder structure: controllers, routes, models, middleware, utils, config\n3. Configure package.json with required dependencies\n4. Set up environment variables (.env) for configuration\n5. Implement basic server.js with Express setup\n6. Configure error handling middleware\n7. Set up logging with Winston or Morgan\n8. Implement the health check endpoint for deployment monitoring\n9. Add compression middleware for performance\n10. Configure CORS settings for frontend access",
+        "testStrategy": "Verify server starts without errors. Test health check endpoint returns 200 OK. Validate CORS configuration allows frontend access. Ensure logging is working properly.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 7,
+        "title": "Configure PostgreSQL Database Connection",
+        "description": "Set up PostgreSQL database connection and implement database schema based on the requirements.",
+        "details": "1. Install pg and pg-pool packages\n2. Create database connection utility\n3. Implement database schema creation scripts for all required tables:\n   - users (id, email, password_hash, name, role, created_at)\n   - studios (id, name, description, created_by, created_at)\n   - studio_members (id, studio_id, user_id, role, joined_at)\n   - projects (id, studio_id, name, description, status, created_at)\n   - scenes (id, project_id, name, order_index, status, created_at)\n   - images (id, scene_id, type, filename, path, thumbnail_path, size, created_at)\n   - comments (id, scene_id, user_id, parent_id, content, has_annotation, created_at)\n   - activity_logs (id, user_id, action_type, resource_type, resource_id, details, created_at)\n4. Set up database indexes for performance optimization\n5. Implement database migration system\n6. Create database initialization script for deployment",
+        "testStrategy": "Test database connection. Verify schema creation scripts execute without errors. Validate all tables are created with proper constraints and indexes. Test database initialization script works correctly.",
+        "priority": "high",
+        "dependencies": [
+          6
+        ],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 8,
+        "title": "Implement Authentication System",
+        "description": "Develop the authentication system with JWT token-based authentication, including signup, login, and admin account support.",
+        "details": "1. Create user model with password hashing using bcrypt\n2. Implement JWT token generation and verification utilities\n3. Create authentication middleware for protected routes\n4. Implement /api/auth/signup endpoint\n5. Implement /api/auth/login endpoint\n6. Add token refresh mechanism\n7. Implement password reset functionality\n8. Create admin role verification middleware\n9. Implement rate limiting for auth endpoints\n10. Add Helmet.js for security headers",
+        "testStrategy": "Test user registration with validation. Verify login returns valid JWT token. Test token verification middleware. Validate admin role restrictions. Test rate limiting functionality. Ensure password hashing works correctly.",
+        "priority": "high",
+        "dependencies": [
+          6,
+          7
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 9,
+        "title": "Implement User Management APIs",
+        "description": "Create APIs for user profile management and activity tracking.",
+        "details": "1. Create user controller and routes\n2. Implement GET /api/users/profile endpoint\n3. Implement PATCH /api/users/profile for profile updates\n4. Create GET /api/users/activities endpoint for user activity logs\n5. Implement user search functionality\n6. Add profile image upload and management\n7. Create admin-only user management endpoints\n8. Implement user status management (active/inactive)\n9. Add validation middleware for user-related requests",
+        "testStrategy": "Test profile retrieval and updates. Verify activity log retrieval works correctly. Test user search with different parameters. Validate admin-only endpoints are properly protected. Test profile image upload and retrieval.",
+        "priority": "medium",
+        "dependencies": [
+          7,
+          8
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 10,
+        "title": "Implement Studio Management APIs",
+        "description": "Develop APIs for studio creation, management, and member invitation system.",
+        "details": "1. Create studio controller and routes\n2. Implement POST /api/studios endpoint for studio creation\n3. Implement GET /api/studios and GET /api/studios/:id endpoints\n4. Add PUT /api/studios/:id for studio updates\n5. Implement DELETE /api/studios/:id\n6. Create studio member invitation system with invitation codes\n7. Implement POST /api/studios/:id/members for adding members\n8. Add endpoints for managing member permissions\n9. Implement GET /api/studios/:id/members\n10. Create DELETE /api/studios/:id/members/:userId endpoint",
+        "testStrategy": "Test studio CRUD operations. Verify invitation code generation and validation. Test member addition and removal. Validate permission changes take effect. Test studio listing with proper filtering.",
+        "priority": "high",
+        "dependencies": [
+          7,
+          8
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 11,
+        "title": "Implement Project Management APIs",
+        "description": "Create APIs for project creation, management, and status tracking within studios.",
+        "details": "1. Create project controller and routes\n2. Implement POST /api/projects endpoint for project creation\n3. Implement GET /api/projects and GET /api/projects/:id endpoints\n4. Add PUT /api/projects/:id for project updates\n5. Implement DELETE /api/projects/:id\n6. Create project status management (in progress, completed, etc.)\n7. Implement GET /api/studios/:id/projects for studio projects\n8. Add project sorting and filtering capabilities\n9. Implement project statistics endpoints\n10. Create validation middleware for project-related requests",
+        "testStrategy": "Test project CRUD operations. Verify project status changes. Test project listing by studio with proper filtering. Validate project statistics calculations. Ensure proper authorization for project operations.",
+        "priority": "high",
+        "dependencies": [
+          7,
+          8,
+          10
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 12,
+        "title": "Implement Scene Management APIs",
+        "description": "Develop APIs for scene creation, management, and ordering within projects.",
+        "details": "1. Create scene controller and routes\n2. Implement POST /api/scenes endpoint for scene creation\n3. Implement GET /api/scenes and GET /api/scenes/:id endpoints\n4. Add PUT /api/scenes/:id for scene updates\n5. Implement DELETE /api/scenes/:id\n6. Create scene ordering functionality\n7. Implement GET /api/projects/:id/scenes for project scenes\n8. Add scene status management\n9. Implement scene version history tracking\n10. Create validation middleware for scene-related requests",
+        "testStrategy": "Test scene CRUD operations. Verify scene ordering works correctly. Test scene listing by project. Validate scene status changes. Ensure proper authorization for scene operations. Test version history tracking.",
+        "priority": "high",
+        "dependencies": [
+          7,
+          8,
+          11
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 13,
+        "title": "Implement Image Processing System",
+        "description": "Create image upload, processing, and optimization system using Multer and Sharp.",
+        "details": "1. Set up Multer for file uploads\n2. Configure Sharp for image processing\n3. Implement POST /api/images endpoint for image uploads\n4. Create thumbnail generation functionality\n5. Implement WebP conversion for optimization\n6. Add file size validation (10MB limit)\n7. Create image metadata extraction\n8. Implement GET /api/images/:id endpoint\n9. Add DELETE /api/images/:id endpoint\n10. Create image association with scenes\n11. Implement draft vs. artwork image type differentiation",
+        "testStrategy": "Test image upload with various file types. Verify thumbnail generation works correctly. Test WebP conversion quality and size reduction. Validate file size limits are enforced. Test image retrieval and deletion. Ensure proper image type association with scenes.",
+        "priority": "high",
+        "dependencies": [
+          6,
+          7,
+          12
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 14,
+        "title": "Implement Comment System APIs",
+        "description": "Develop APIs for comment creation, management, and threading with annotation support.",
+        "details": "1. Create comment controller and routes\n2. Implement POST /api/comments endpoint for comment creation\n3. Implement GET /api/comments and GET /api/comments/:id endpoints\n4. Add PUT /api/comments/:id for comment updates\n5. Implement DELETE /api/comments/:id\n6. Create comment threading with parent-child relationships\n7. Implement annotation data storage and retrieval\n8. Add comment tagging for revision requests\n9. Implement GET /api/scenes/:id/comments for scene comments\n10. Create validation middleware for comment-related requests",
+        "testStrategy": "Test comment CRUD operations. Verify threaded comments work correctly. Test annotation data storage and retrieval. Validate comment tagging functionality. Test comment listing by scene. Ensure proper authorization for comment operations.",
+        "priority": "medium",
+        "dependencies": [
+          7,
+          8,
+          12
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 15,
+        "title": "Implement Activity Logging System",
+        "description": "Create a comprehensive activity logging system to track all user actions across the platform.",
+        "details": "1. Create activity log model and controller\n2. Implement activity logging middleware\n3. Define activity types and resource types\n4. Add logging for all major actions (create, update, delete)\n5. Implement GET /api/activity-logs endpoint with filtering\n6. Create user-specific activity log retrieval\n7. Add studio-specific activity log retrieval\n8. Implement project-specific activity log retrieval\n9. Create scene-specific activity log retrieval\n10. Add pagination for activity log endpoints",
+        "testStrategy": "Verify activity logging for various actions. Test activity log retrieval with different filters. Validate user-specific logs are correctly filtered. Test pagination works correctly. Ensure proper authorization for log retrieval.",
+        "priority": "medium",
+        "dependencies": [
+          7,
+          8
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 16,
+        "title": "Implement Annotation Drawing System",
+        "description": "Develop the backend support for the annotation drawing feature on scene images.",
+        "details": "1. Create annotation data model\n2. Implement annotation data storage in comments\n3. Add support for different annotation types (lines, arrows, rectangles, etc.)\n4. Implement annotation color and style storage\n5. Create annotation positioning system\n6. Add annotation grouping functionality\n7. Implement annotation versioning with comment updates\n8. Create annotation retrieval with scene comments\n9. Add validation for annotation data\n10. Implement annotation rendering support data",
+        "testStrategy": "Test annotation data storage with comments. Verify different annotation types work correctly. Test annotation retrieval with comments. Validate annotation positioning accuracy. Ensure annotation versioning works with comment updates.",
+        "priority": "medium",
+        "dependencies": [
+          13,
+          14
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 17,
+        "title": "Implement Frontend API Integration",
+        "description": "Refactor the frontend to use the real backend APIs instead of localStorage.",
+        "details": "1. Create API service modules for frontend\n2. Implement authentication integration\n3. Update studio management to use APIs\n4. Refactor project management to use APIs\n5. Update scene management to use APIs\n6. Implement image upload and retrieval integration\n7. Update comment system to use APIs\n8. Implement activity log display\n9. Add error handling for API requests\n10. Implement loading states for API operations\n11. Create token refresh mechanism on frontend\n12. Add offline detection and handling",
+        "testStrategy": "Test all API integrations with the backend. Verify authentication flow works correctly. Test error handling for various scenarios. Validate loading states display properly. Ensure token refresh works correctly. Test offline detection and recovery.",
+        "priority": "high",
+        "dependencies": [
+          8,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 18,
+        "title": "Implement Security Measures",
+        "description": "Enhance the security of the backend with rate limiting, CORS, and other security features.",
+        "details": "1. Implement rate limiting for all API endpoints\n2. Configure CORS settings for production\n3. Add Helmet.js with appropriate security headers\n4. Implement input validation for all endpoints\n5. Add SQL injection protection\n6. Create XSS protection measures\n7. Implement CSRF protection\n8. Add request logging for security monitoring\n9. Create IP blocking for suspicious activity\n10. Implement sensitive data encryption",
+        "testStrategy": "Test rate limiting functionality. Verify CORS settings work correctly. Validate security headers are properly set. Test input validation with various payloads. Attempt SQL injection attacks to verify protection. Test XSS protection measures.",
+        "priority": "high",
+        "dependencies": [
+          6,
+          8
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 19,
+        "title": "Configure Railway Deployment",
+        "description": "Set up the deployment configuration for Railway, including environment variables and database initialization.",
+        "details": "1. Create Railway project configuration\n2. Set up environment variables in Railway\n3. Configure PostgreSQL database in Railway\n4. Implement database initialization script\n5. Set up automatic deployments from repository\n6. Configure custom domain if needed\n7. Implement health check endpoint for monitoring\n8. Set up logging in Railway\n9. Configure scaling settings\n10. Create deployment documentation",
+        "testStrategy": "Test deployment process to Railway. Verify environment variables are correctly set. Test database initialization on deployment. Validate health check endpoint works in production. Test automatic deployments from repository.",
+        "priority": "medium",
+        "dependencies": [
+          6,
+          7,
+          18
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 20,
+        "title": "Create Documentation and Patch Notes",
+        "description": "Develop comprehensive API documentation and prepare patch notes for the backend implementation.",
+        "details": "1. Create API documentation with Swagger/OpenAPI\n2. Document database schema\n3. Create deployment instructions\n4. Write developer onboarding guide\n5. Document environment variables\n6. Create user guide for frontend-backend integration\n7. Prepare patch notes detailing all changes\n8. Document known limitations and future improvements\n9. Create troubleshooting guide\n10. Document testing procedures",
+        "testStrategy": "Verify API documentation is accurate and complete. Test documentation examples work correctly. Validate deployment instructions are clear and functional. Ensure patch notes cover all implemented features and changes.",
+        "priority": "low",
+        "dependencies": [
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19
+        ],
+        "status": "pending",
+        "subtasks": []
       }
     ],
     "metadata": {
       "created": "2025-08-28T05:21:39.600Z",
-      "updated": "2025-08-28T05:21:39.600Z",
+      "updated": "2025-08-30T08:27:47.334Z",
       "description": "Tasks for master context"
+    }
+  },
+  "backend-implementation": {
+    "tasks": [],
+    "metadata": {
+      "created": "2025-08-30T08:14:28.138Z",
+      "updated": "2025-08-30T08:14:28.138Z",
+      "description": "백엔드 구현 및 프론트엔드 연동 작업"
     }
   }
 }

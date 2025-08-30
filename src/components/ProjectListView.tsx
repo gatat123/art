@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   ArrowLeft, Hash, Bell, Filter, FolderOpen, User, Calendar 
 } from 'lucide-react';
 import CreateProjectModal from './CreateProjectModal';
+import { projectsApi } from '@/lib/api';
 
 type ViewType = 'login' | 'studios' | 'project' | 'scene';
 
@@ -46,6 +47,42 @@ const ProjectListView: React.FC<ProjectListViewProps> = ({
   showCreateProject,
   setShowCreateProject
 }) => {
+  const [loading, setLoading] = useState(false);
+
+  // API에서 프로젝트 목록 가져오기
+  useEffect(() => {
+    const fetchProjects = async () => {
+      if (channelId) {
+        setLoading(true);
+        try {
+          const data = await projectsApi.list(channelId.toString());
+          setProjects(data.map((project: any) => ({
+            id: project.id,
+            channelId: project.studio_id || channelId,
+            title: project.title,
+            episode: `EP${project.id}`,
+            status: project.status || 'waiting_sketch',
+            progress: 0,
+            dueDate: project.deadline || '',
+            assignee: project.creator_name || '',
+            lastUpdated: project.updated_at || project.created_at,
+            totalScenes: project.scene_count || 0,
+            completedScenes: 0,
+            author: project.creator_name || '',
+            artist: '',
+            createdAt: project.created_at
+          })));
+        } catch (error) {
+          console.error('프로젝트 목록 가져오기 실패:', error);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchProjects();
+  }, [channelId, setProjects]);
+
   // channelId는 number 타입 (0이 기본값)
   const channelProjects = channelId 
     ? projects.filter(p => p.channelId === channelId)

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
+import { projectsApi } from '@/lib/api';
 
 interface ProjectData {
   title: string;
@@ -31,29 +32,63 @@ const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
     totalScenes: 5,
     description: ''
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onCreate({
-      ...projectData,
-      id: Date.now(),
-      status: 'in_progress',
-      progress: 0,
-      assignee: projectData.artist,
-      lastUpdated: '방금',
-      completedScenes: 0,
-      author: '나',
-      createdAt: new Date().toISOString().split('T')[0],
-      scenes: []
-    });
-    setProjectData({
-      title: '',
-      episode: '',
-      artist: '',
-      dueDate: '',
-      totalScenes: 5,
-      description: ''
-    });
+    
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
+    try {
+      // 백엔드 API로 프로젝트 생성
+      const token = localStorage.getItem('token');
+      const studioId = parseInt(localStorage.getItem('currentStudioId') || '1');
+      
+      if (token && !token.startsWith('demo-')) {
+        const response = await projectsApi.createProject({
+          studio_id: studioId,
+          title: projectData.title,
+          description: projectData.description,
+          deadline: projectData.dueDate || undefined,
+          episode: projectData.episode,
+          artist: projectData.artist,
+          totalScenes: projectData.totalScenes
+        });
+        
+        onCreate(response);
+      } else {
+        // 데모 모드: localStorage 사용
+        onCreate({
+          ...projectData,
+          id: Date.now(),
+          studio_id: studioId,
+          status: 'in_progress',
+          progress: 0,
+          assignee: projectData.artist,
+          lastUpdated: '방금',
+          completedScenes: 0,
+          author: '나',
+          createdAt: new Date().toISOString().split('T')[0],
+          scenes: []
+        });
+      }
+      
+      setProjectData({
+        title: '',
+        episode: '',
+        artist: '',
+        dueDate: '',
+        totalScenes: 5,
+        description: ''
+      });
+      
+    } catch (error) {
+      console.error('프로젝트 생성 실패:', error);
+      alert('프로젝트 생성에 실패했습니다.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -151,9 +186,12 @@ const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800"
+              disabled={isSubmitting}
+              className={`px-4 py-2 bg-black text-white rounded hover:bg-gray-800 ${
+                isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
             >
-              생성하기
+              {isSubmitting ? '생성 중...' : '생성하기'}
             </button>
           </div>
         </form>

@@ -1,11 +1,23 @@
 import express from 'express';
 import cors from 'cors';
-import multer from 'multer';
-import sharp from 'sharp';
+import helmet from 'helmet';
+import compression from 'compression';
+import dotenv from 'dotenv';
 import path from 'path';
-import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
-import crypto from 'crypto';
+import fs from 'fs/promises';
+import rateLimit from 'express-rate-limit';
+
+// Routes
+import authRouter from './routes/auth.js';
+// import studiosRouter from './routes/studios.js';
+// import projectsRouter from './routes/projects.js';
+// import scenesRouter from './routes/scenes.js';
+// import imagesRouter from './routes/images.js';
+// import commentsRouter from './routes/comments.js';
+// import usersRouter from './routes/users.js';
+
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,129 +25,58 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-
 // 업로드 디렉토리 생성
 const uploadsDir = path.join(__dirname, 'uploads');
-const tempDir = path.join(__dirname, 'temp');
-
 async function ensureDirectories() {
   try {
     await fs.access(uploadsDir);
   } catch {
     await fs.mkdir(uploadsDir, { recursive: true });
+    console.log('📁 Uploads directory created');
   }
-  try {
-    await fs.access(tempDir);
-  } catch {
-    await fs.mkdir(tempDir, { recursive: true });
-  }
-}
+}ensureDirectories();
 
-ensureDirectories();
-
-// Multer 설정 - 메모리 저장
-const storage = multer.memoryStorage();
-const upload = multer({ 
-  storage,
-  limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB 제한
-  },
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif|webp/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-    
-    if (mimetype && extname) {
-      return cb(null, true);
-    } else {
-      cb(new Error('이미지 파일만 업로드 가능합니다.'));
-    }
-  }
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15분
+  max: 100 // 요청 제한
 });
 
-// 이미지 업로드 엔드포인트
-app.post('/api/upload', upload.single('image'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: '파일이 없습니다.' });
-    }
+// Middleware
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
+app.use(compression());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'https://art-production-a9ab.up.railway.app',
+  credentials: true
+}));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use('/api/', limiter);
 
-    const { type, projectId, sceneId } = req.body;
-    
-    // 고유한 파일명 생성
-    const uniqueId = crypto.randomBytes(16).toString('hex');
-    const timestamp = Date.now();
-    const ext = path.extname(req.file.originalname);
-    const filename = `${type}_${projectId}_${sceneId}_${timestamp}_${uniqueId}${ext}`;
-    
-    // Sharp를 사용하여 이미지 최적화
-    const optimizedBuffer = await sharp(req.file.buffer)
-      .resize(1920, null, { 
-        withoutEnlargement: true,
-        fit: 'inside'
-      })
-      .jpeg({ quality: 85, progressive: true })
-      .toBuffer();
-    
-    // 썸네일 생성
-    const thumbnailBuffer = await sharp(req.file.buffer)
-      .resize(400, null, { 
-        withoutEnlargement: true,
-        fit: 'inside'
-      })
-      .jpeg({ quality: 70 })
-      .toBuffer();
-    
-    // 파일 저장
-    const filePath = path.join(uploadsDir, filename);
-    const thumbnailPath = path.join(uploadsDir, `thumb_${filename}`);
-    
-    await fs.writeFile(filePath, optimizedBuffer);
-    await fs.writeFile(thumbnailPath, thumbnailBuffer);
-    
-    // URL 반환
-    const fileUrl = `/uploads/${filename}`;
-    const thumbnailUrl = `/uploads/thumb_${filename}`;
-    
-    res.json({
-      success: true,
-      url: fileUrl,
-      thumbnailUrl: thumbnailUrl,
-      filename: filename,
-      size: optimizedBuffer.length,
-      originalSize: req.file.buffer.length
-    });
-    
-  } catch (error) {
-    console.error('Upload error:', error);
-    res.status(500).json({ error: '파일 업로드 중 오류가 발생했습니다.' });
-  }
-});
-
-// Static 파일 제공
+// Static files
 app.use('/uploads', express.static(uploadsDir));
 
-// 이미지 삭제 엔드포인트
-app.delete('/api/upload/:filename', async (req, res) => {
-  try {
-    const { filename } = req.params;
-    const filePath = path.join(uploadsDir, filename);
-    const thumbnailPath = path.join(uploadsDir, `thumb_${filename}`);
-    
-    await fs.unlink(filePath);
-    await fs.unlink(thumbnailPath).catch(() => {}); // 썸네일은 없을 수도 있음
-    
-    res.json({ success: true, message: '파일이 삭제되었습니다.' });
-  } catch (error) {
-    console.error('Delete error:', error);
-    res.status(500).json({ error: '파일 삭제 중 오류가 발생했습니다.' });
-  }
+// Routes
+app.use('/api/auth', authRouter);
+// app.use('/api/studios', studiosRouter);
+// app.use('/api/projects', projectsRouter);
+// app.use('/api/scenes', scenesRouter);
+// app.use('/api/images', imagesRouter);
+// app.use('/api/comments', commentsRouter);
+// app.use('/api/users', usersRouter);
+
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    message: 'Studio Backend Running',
+    timestamp: new Date().toISOString()
+  });
 });
 
-// 디스크 사용량 체크 (Railway 5달러 플랜은 약 10GB 스토리지)
+// Storage info
 app.get('/api/storage-info', async (req, res) => {
   try {
     const files = await fs.readdir(uploadsDir);
@@ -150,7 +91,7 @@ app.get('/api/storage-info', async (req, res) => {
       totalFiles: files.length,
       totalSize: totalSize,
       totalSizeMB: (totalSize / (1024 * 1024)).toFixed(2),
-      maxSizeMB: 8000, // 8GB로 안전하게 설정 (Railway 5달러 플랜)
+      maxSizeMB: 8000,
       usagePercent: ((totalSize / (8000 * 1024 * 1024)) * 100).toFixed(2)
     });
   } catch (error) {
@@ -159,33 +100,21 @@ app.get('/api/storage-info', async (req, res) => {
   }
 });
 
-// 오래된 파일 정리 (30일 이상된 파일)
-app.post('/api/cleanup', async (req, res) => {
-  try {
-    const files = await fs.readdir(uploadsDir);
-    const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
-    let deletedCount = 0;
-    
-    for (const file of files) {
-      const filePath = path.join(uploadsDir, file);
-      const stats = await fs.stat(filePath);
-      
-      if (stats.mtimeMs < thirtyDaysAgo) {
-        await fs.unlink(filePath);
-        deletedCount++;
-      }
-    }
-    
-    res.json({ 
-      success: true, 
-      message: `${deletedCount}개의 오래된 파일이 삭제되었습니다.` 
-    });
-  } catch (error) {
-    console.error('Cleanup error:', error);
-    res.status(500).json({ error: '정리 중 오류가 발생했습니다.' });
-  }
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(err.status || 500).json({
+    error: err.message || '서버 오류가 발생했습니다.',
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ error: '요청한 리소스를 찾을 수 없습니다.' });
 });
 
 app.listen(PORT, () => {
-  console.log(`서버가 포트 ${PORT}에서 실행중입니다.`);
+  console.log(`🚀 서버가 포트 ${PORT}에서 실행중입니다.`);
+  console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
